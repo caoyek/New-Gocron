@@ -1,0 +1,195 @@
+.system-settings-main {
+  overflow-y: auto;
+}
+
+.notification-nav {
+  display: flex;
+  width: 100%;
+  max-width: 800px;
+  align-items: center;
+  gap: 10px;
+}
+
+.notification-tabs {
+  min-width: 0;
+  flex: 1;
+}
+
+.notification-tabs .el-tabs__header {
+  margin-bottom: 0;
+}
+
+.notification-tabs .el-tabs__item {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 13px;
+  line-height: 38px;
+}
+
+.notification-tabs .el-tabs__nav-wrap::after {
+  height: 1px;
+  background: #e6e5e3;
+}
+
+.notification-help-button,
+.settings-help-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  flex: 0 0 24px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #d5803b;
+  cursor: help;
+  font-size: 16px;
+}
+
+.system-settings-form {
+  width: 100%;
+  max-width: 800px;
+  padding-top: 14px;
+}
+
+.settings-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e6e5e3;
+}
+
+.settings-section__header {
+  display: flex;
+  min-height: 30px;
+  margin-bottom: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.settings-section__header h2 {
+  margin: 0;
+  color: #2c2c2b;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 12px;
+}
+
+.settings-span-full {
+  grid-column: 1 / -1;
+}
+
+.system-settings-form .el-form-item {
+  margin-bottom: 10px;
+}
+
+.system-settings-form .el-form-item__label,
+.settings-dialog-form .el-form-item__label {
+  height: 20px;
+  padding: 0 0 2px;
+  color: #7d7a75;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.system-settings-form .el-input__inner,
+.settings-dialog-form .el-input__inner {
+  height: 32px;
+  border-color: #e0dfdc;
+  border-radius: 6px;
+  line-height: 32px;
+}
+
+.system-settings-form .el-textarea__inner {
+  min-height: 118px !important;
+  padding: 8px 10px;
+  border-color: #343a46;
+  border-radius: 6px;
+  background: #1f232b;
+  color: #e6edf3;
+  caret-color: #7dcfff;
+  font: 12px/18px Consolas, "Cascadia Code", monospace;
+  letter-spacing: 0;
+}
+
+.system-settings-form .el-textarea__inner::placeholder {
+  color: #7f8997;
+}
+
+.settings-label-help {
+  margin-left: 3px;
+  color: #d5803b;
+  cursor: help;
+}
+
+.settings-actions,
+.settings-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-actions .el-button + .el-button,
+.settings-dialog-actions .el-button + .el-button {
+  margin-left: 0;
+}
+
+.settings-collection-section {
+  padding-bottom: 12px;
+}
+
+.settings-tags {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings-empty {
+  color: #a1a1a1;
+  font-size: 12px;
+}
+
+.compact-settings-dialog .el-dialog {
+  max-width: calc(100% - 24px);
+  border-radius: 8px;
+}
+
+.compact-settings-dialog .el-dialog__header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e6e5e3;
+}
+
+.compact-settings-dialog .el-dialog__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.compact-settings-dialog .el-dialog__body {
+  padding: 14px 18px 4px;
+}
+
+.compact-settings-dialog .el-dialog__footer {
+  padding: 10px 18px;
+  border-top: 1px solid #e6e5e3;
+}
+
+.settings-dialog-form .el-form-item {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 620px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-span-full {
+    grid-column: auto;
+  }
+}

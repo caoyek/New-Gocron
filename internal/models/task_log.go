@@ -15,7 +15,7 @@ type TaskLog struct {
 	Name       string       `json:"name" xorm:"varchar(32) notnull"`                  // 任务名称
 	Spec       string       `json:"spec" xorm:"varchar(64) notnull"`                  // crontab
 	Protocol   TaskProtocol `json:"protocol" xorm:"tinyint notnull index"`            // 协议 1:http 2:RPC
-	Command    string       `json:"command" xorm:"varchar(256) notnull"`              // URL地址或shell命令
+	Command    string       `json:"command" xorm:"text notnull"`                      // URL地址或shell命令
 	Timeout    int          `json:"timeout" xorm:"mediumint notnull default 0"`       // 任务执行超时时间(单位秒),0不限制
 	RetryTimes int8         `json:"retry_times" xorm:"tinyint notnull default 0"`     // 任务重试次数
 	Hostname   string       `json:"hostname" xorm:"varchar(128) notnull default '' "` // RPC主机名，逗号分隔
@@ -25,6 +25,10 @@ type TaskLog struct {
 	Result     string       `json:"result" xorm:"mediumtext notnull "`                // 执行结果
 	TotalTime  int          `json:"total_time" xorm:"-"`                              // 执行总时长
 	BaseModel  `json:"-" xorm:"-"`
+}
+
+func taskLogTableName() string {
+	return TablePrefix + "task_log"
 }
 
 func (taskLog *TaskLog) Create() (insertId int64, err error) {
@@ -41,6 +45,18 @@ func (taskLog *TaskLog) Update(id int64, data CommonMap) (int64, error) {
 	return Db.Table(taskLog).ID(id).Update(data)
 }
 
+func (taskLog TaskLog) executionSeconds(now time.Time) int {
+	endTime := taskLog.EndTime
+	if taskLog.Status == Running {
+		endTime = now
+	}
+	seconds := int(endTime.Sub(taskLog.StartTime).Seconds())
+	if seconds < 0 {
+		return 0
+	}
+	return seconds
+}
+
 func (taskLog *TaskLog) List(params CommonMap) ([]TaskLog, error) {
 	taskLog.parsePageAndPageSize(params)
 	list := make([]TaskLog, 0)
@@ -49,12 +65,7 @@ func (taskLog *TaskLog) List(params CommonMap) ([]TaskLog, error) {
 	err := session.Limit(taskLog.PageSize, taskLog.pageLimitOffset()).Find(&list)
 	if len(list) > 0 {
 		for i, item := range list {
-			endTime := item.EndTime
-			if item.Status == Running {
-				endTime = time.Now()
-			}
-			execSeconds := endTime.Sub(item.StartTime).Seconds()
-			list[i].TotalTime = int(execSeconds)
+			list[i].TotalTime = item.executionSeconds(time.Now())
 		}
 	}
 
@@ -87,6 +98,11 @@ func (taskLog *TaskLog) parseWhere(session *xorm.Session, params CommonMap) {
 	taskId, ok := params["TaskId"]
 	if ok && taskId.(int) > 0 {
 		session.And("task_id = ?", taskId)
+	}
+	keyword, ok := params["Keyword"]
+	if ok && keyword.(string) != "" {
+		likeKeyword := "%" + keyword.(string) + "%"
+		session.And("(CAST(task_id AS CHAR) LIKE ? OR name LIKE ?)", likeKeyword, likeKeyword)
 	}
 	protocol, ok := params["Protocol"]
 	if ok && protocol.(int) > 0 {

@@ -1,4 +1,4 @@
-module github.com/ouqiang/gocron
+module github.com/caoyek/New-Gocron
 
 go 1.12
 

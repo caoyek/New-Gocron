@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"time"
 
-	"github.com/ouqiang/gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
 )
 
 type Message map[string]interface{}
@@ -69,7 +69,7 @@ func parseNotifyTemplate(notifyTemplate string, msg Message) string {
 		"TaskName": msg["name"],
 		"Status":   msg["status"],
 		"Result":   msg["output"],
-		"Remark": msg["remark"],
+		"Remark":   msg["remark"],
 	})
 
 	return buf.String()

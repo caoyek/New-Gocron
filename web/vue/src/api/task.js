@@ -25,6 +25,14 @@ export default {
     ], callback)
   },
 
+  tags (callback) {
+    httpClient.get('/task/tags', {}, callback)
+  },
+
+  children (callback) {
+    httpClient.get('/task/children', {}, callback)
+  },
+
   update (data, callback) {
     httpClient.post('/task/store', data, callback)
   },

@@ -6,13 +6,13 @@ import (
 
 	"github.com/ouqiang/goutil"
 
+	"github.com/caoyek/New-Gocron/internal/models"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/routers/base"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"github.com/go-macaron/binding"
 	"github.com/jakecoffman/cron"
-	"github.com/ouqiang/gocron/internal/models"
-	"github.com/ouqiang/gocron/internal/modules/logger"
-	"github.com/ouqiang/gocron/internal/modules/utils"
-	"github.com/ouqiang/gocron/internal/routers/base"
-	"github.com/ouqiang/gocron/internal/service"
 	"gopkg.in/macaron.v1"
 )
 
@@ -24,7 +24,7 @@ type TaskForm struct {
 	Name             string `binding:"Required;MaxSize(32)"`
 	Spec             string
 	Protocol         models.TaskProtocol   `binding:"In(1,2)"`
-	Command          string                `binding:"Required;MaxSize(256)"`
+	Command          string                `binding:"Required"`
 	HttpMethod       models.TaskHTTPMethod `binding:"In(1,2)"`
 	Timeout          int                   `binding:"Range(0,86400)"`
 	Multi            int8                  `binding:"In(1,2)"`
@@ -70,6 +70,30 @@ func Index(ctx *macaron.Context) string {
 		"total": total,
 		"data":  tasks,
 	})
+}
+
+// Tags returns all tags used by existing tasks.
+func Tags(ctx *macaron.Context) string {
+	tags, err := new(models.Task).Tags()
+	jsonResp := utils.JsonResponse{}
+	if err != nil {
+		logger.Error(err)
+		return jsonResp.CommonFailure(utils.FailureContent, err)
+	}
+
+	return jsonResp.Success(utils.SuccessContent, tags)
+}
+
+// Children returns all child tasks available for dependency selection.
+func Children(ctx *macaron.Context) string {
+	tasks, err := new(models.Task).Children()
+	jsonResp := utils.JsonResponse{}
+	if err != nil {
+		logger.Error(err)
+		return jsonResp.CommonFailure(utils.FailureContent, err)
+	}
+
+	return jsonResp.Success(utils.SuccessContent, tasks)
 }
 
 // Detail 任务详情
@@ -194,8 +218,12 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 	}
 
 	status, _ := taskModel.GetStatus(id)
-	if status == models.Enabled && taskModel.Level == models.TaskLevelParent {
-		addTaskToTimer(id)
+	if status == models.Enabled {
+		if taskModel.Level == models.TaskLevelParent {
+			addTaskToTimer(id)
+		} else {
+			service.ServiceTask.Remove(id)
+		}
 	}
 
 	return json.Success("保存成功", nil)
@@ -284,6 +312,7 @@ func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	params["Id"] = ctx.QueryInt("id")
 	params["HostId"] = ctx.QueryInt("host_id")
 	params["Name"] = ctx.QueryTrim("name")
+	params["Keyword"] = ctx.QueryTrim("keyword")
 	params["Protocol"] = ctx.QueryInt("protocol")
 	params["Tag"] = ctx.QueryTrim("tag")
 	status := ctx.QueryInt("status")

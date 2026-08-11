@@ -8,23 +8,24 @@ import (
 	"strings"
 	"time"
 
+	"github.com/caoyek/New-Gocron/internal/modules/app"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/routers/dashboard"
+	"github.com/caoyek/New-Gocron/internal/routers/host"
+	"github.com/caoyek/New-Gocron/internal/routers/install"
+	"github.com/caoyek/New-Gocron/internal/routers/loginlog"
+	"github.com/caoyek/New-Gocron/internal/routers/manage"
+	"github.com/caoyek/New-Gocron/internal/routers/task"
+	"github.com/caoyek/New-Gocron/internal/routers/tasklog"
+	"github.com/caoyek/New-Gocron/internal/routers/user"
 	"github.com/go-macaron/binding"
 	"github.com/go-macaron/gzip"
 	"github.com/go-macaron/toolbox"
-	"github.com/ouqiang/gocron/internal/modules/app"
-	"github.com/ouqiang/gocron/internal/modules/logger"
-	"github.com/ouqiang/gocron/internal/modules/utils"
-	"github.com/ouqiang/gocron/internal/routers/host"
-	"github.com/ouqiang/gocron/internal/routers/install"
-	"github.com/ouqiang/gocron/internal/routers/loginlog"
-	"github.com/ouqiang/gocron/internal/routers/manage"
-	"github.com/ouqiang/gocron/internal/routers/task"
-	"github.com/ouqiang/gocron/internal/routers/tasklog"
-	"github.com/ouqiang/gocron/internal/routers/user"
 	"github.com/rakyll/statik/fs"
 	"gopkg.in/macaron.v1"
 
-	_ "github.com/ouqiang/gocron/internal/statik"
+	_ "github.com/caoyek/New-Gocron/internal/statik"
 )
 
 const (
@@ -68,6 +69,8 @@ func Register(m *macaron.Macaron) {
 	})
 
 	// 用户
+	m.Get("/dashboard", dashboard.Index)
+
 	m.Group("/user", func() {
 		m.Get("", user.Index)
 		m.Get("/:id", user.Detail)
@@ -83,6 +86,8 @@ func Register(m *macaron.Macaron) {
 	// 定时任务
 	m.Group("/task", func() {
 		m.Post("/store", binding.Bind(task.TaskForm{}), task.Store)
+		m.Get("/tags", task.Tags)
+		m.Get("/children", task.Children)
 		m.Get("/:id", task.Detail)
 		m.Get("", task.Index)
 		m.Get("/log", tasklog.Index)

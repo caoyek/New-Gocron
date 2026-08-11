@@ -1,32 +1,34 @@
 <template>
   <el-container>
-    <el-main>
-      <el-row type="flex" justify="end">
-        <el-col :span="2">
-          <el-button type="primary"  @click="toEdit(null)">新增</el-button>
-        </el-col>
-        <el-col :span="2">
-          <el-button type="info" @click="refresh">刷新</el-button>
-        </el-col>
-      </el-row>
-      <el-pagination
-        background
-        layout="prev, pager, next, sizes, total"
-        :total="userTotal"
-        :page-size="20"
-        @size-change="changePageSize"
-        @current-change="changePage"
-        @prev-click="changePage"
-        @next-click="changePage">
-      </el-pagination>
+    <el-main class="user-list-main">
+      <div class="user-list-toolbar">
+        <el-pagination
+          background
+          layout="prev, pager, next, sizes, total"
+          :total="userTotal"
+          :page-size="20"
+          @size-change="changePageSize"
+          @current-change="changePage"
+          @prev-click="changePage"
+          @next-click="changePage">
+        </el-pagination>
+        <el-button
+          v-if="isAdmin"
+          size="small"
+          type="success"
+          icon="el-icon-plus"
+          @click="toEdit(null)">新增</el-button>
+      </div>
       <el-table
+        class="user-table"
         :data="users"
         tooltip-effect="dark"
         border
         style="width: 100%">
         <el-table-column
           prop="id"
-          label="用户id">
+          label="用户ID"
+          width="110">
         </el-table-column>
         <el-table-column
           prop="name"
@@ -47,21 +49,20 @@
             <el-switch
               v-model="scope.row.status"
               :active-value="1"
-              :inactive-vlaue="0"
+              :inactive-value="0"
               active-color="#13ce66"
               @change="changeStatus(scope.row)"
               inactive-color="#ff4949">
             </el-switch>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="300" v-if="this.isAdmin">
+        <el-table-column label="操作" width="230" v-if="isAdmin">
           <template slot-scope="scope">
-            <el-row>
-              <el-button type="primary" @click="toEdit(scope.row)">编辑</el-button>
-              <el-button type="success" @click="editPassword(scope.row)">修改密码</el-button>
-              <el-button type="danger" @click="remove(scope.row)">删除</el-button>
-            </el-row>
-            <br>
+            <div class="user-actions">
+              <el-button size="mini" type="primary" @click="toEdit(scope.row)">编辑</el-button>
+              <el-button size="mini" type="warning" @click="editPassword(scope.row)">修改密码</el-button>
+              <el-button size="mini" type="danger" @click="remove(scope.row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -145,3 +146,39 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.user-list-main {
+  overflow: hidden;
+}
+
+.user-list-toolbar {
+  display: flex;
+  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.user-actions .el-button + .el-button {
+  margin-left: 0;
+}
+
+@media (max-width: 620px) {
+  .user-list-main {
+    overflow: auto;
+  }
+
+  .user-list-toolbar {
+    align-items: flex-start;
+    flex-direction: column-reverse;
+  }
+}
+</style>

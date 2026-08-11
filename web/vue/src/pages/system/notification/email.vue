@@ -1,82 +1,81 @@
 <template>
   <el-container>
-    <system-sidebar></system-sidebar>
-    <el-main>
+    <el-main class="system-settings-main">
       <notification-tab></notification-tab>
-      <el-form ref="form" :model="form" :rules="formRules" label-width="150px" style="width: 800px;">
-        <h3>邮件服务器配置</h3>
-        <el-row>
-          <el-col :span="12">
+      <el-form ref="form" class="system-settings-form" :model="form" :rules="formRules" label-position="top">
+        <section class="settings-section">
+          <div class="settings-section__header">
+            <h2>邮件服务器</h2>
+          </div>
+          <div class="settings-grid">
             <el-form-item label="SMTP服务器" prop="host">
               <el-input v-model="form.host"></el-input>
             </el-form-item>
-          </el-col>
-          <el-col :span="10">
             <el-form-item label="端口" prop="port">
               <el-input v-model.number="form.port"></el-input>
             </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
             <el-form-item label="用户名" prop="user">
               <el-input v-model="form.user"></el-input>
             </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="密码" prop="password">
               <el-input v-model="form.password" type="password"></el-input>
             </el-form-item>
-          </el-col>
-        </el-row>
-        <el-alert
-          title="通知模板支持html"
-          type="info"
-          :closable="false">
-        </el-alert><br>
-        <el-form-item label="模板" prop="template">
-          <el-input
-            type="textarea"
-            :rows="6"
-            placeholder=""
-            v-model="form.template">
-          </el-input>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="submit()">保存</el-button>
-        </el-form-item>
-        <el-button type="primary" @click="createUser">新增用户</el-button> <br><br>
-        <h3>通知用户</h3>
-        <el-tag
-          v-for="item in receivers"
-          :key="item.email"
-          closable
-          @close="deleteUser(item)">
-          {{item.username}} - {{item.email}}
-        </el-tag>
+            <el-form-item class="settings-span-full" prop="template">
+              <template slot="label">
+                通知模板
+                <el-tooltip content="支持 HTML 内容" placement="top">
+                  <i class="settings-label-help el-icon-warning"></i>
+                </el-tooltip>
+              </template>
+              <el-input v-model="form.template" type="textarea" :rows="6"></el-input>
+            </el-form-item>
+          </div>
+          <div class="settings-actions">
+            <el-button size="small" type="primary" icon="el-icon-check" @click="submit()">保存</el-button>
+          </div>
+        </section>
+
+        <section class="settings-section settings-collection-section">
+          <div class="settings-section__header">
+            <h2>通知用户</h2>
+            <el-button size="small" type="success" icon="el-icon-plus" @click="createUser">新增</el-button>
+          </div>
+          <div class="settings-tags">
+            <el-tag
+              v-for="item in receivers"
+              :key="item.email"
+              size="small"
+              closable
+              @close="deleteUser(item)">
+              {{item.username}} - {{item.email}}
+            </el-tag>
+            <span v-if="receivers.length === 0" class="settings-empty">暂无通知用户</span>
+          </div>
+        </section>
       </el-form>
       <el-dialog
-        title=""
+        class="compact-settings-dialog"
+        title="新增通知用户"
         :visible.sync="dialogVisible"
-        width="30%">
-        <el-form :model="form">
-          <el-form-item label="用户名" >
-            <el-input v-model.trim="username"></el-input>
+        width="420px">
+        <el-form class="settings-dialog-form" label-position="top">
+          <el-form-item label="用户名">
+            <el-input v-model.trim="username" v-focus></el-input>
           </el-form-item>
-          <el-form-item label="邮箱地址" >
+          <el-form-item label="邮箱地址">
             <el-input v-model.trim="email"></el-input>
           </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="saveUser">确 定</el-button>
-          </el-form-item>
         </el-form>
+        <span slot="footer" class="settings-dialog-actions">
+          <el-button size="small" @click="dialogVisible = false">取消</el-button>
+          <el-button size="small" type="primary" @click="saveUser">确定</el-button>
+        </span>
       </el-dialog>
     </el-main>
   </el-container>
 </template>
 
 <script>
-import systemSidebar from '../sidebar'
 import notificationTab from './tab'
 import notificationService from '../../../api/notification'
 export default {
@@ -113,7 +112,7 @@ export default {
       dialogVisible: false
     }
   },
-  components: {notificationTab, systemSidebar},
+  components: {notificationTab},
   created () {
     this.init()
   },
@@ -164,15 +163,9 @@ export default {
         this.form.user = data.user
         this.form.password = data.password
         this.form.template = data.template
-        this.receivers = data.mail_users
+        this.receivers = data.mail_users || []
       })
     }
   }
 }
 </script>
-
-<style scoped>
-  .el-tag + .el-tag {
-    margin-left: 10px;
-  }
-</style>

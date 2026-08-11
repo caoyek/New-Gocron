@@ -3,11 +3,11 @@ package tasklog
 // 任务日志
 
 import (
-	"github.com/ouqiang/gocron/internal/models"
-	"github.com/ouqiang/gocron/internal/modules/logger"
-	"github.com/ouqiang/gocron/internal/modules/utils"
-	"github.com/ouqiang/gocron/internal/routers/base"
-	"github.com/ouqiang/gocron/internal/service"
+	"github.com/caoyek/New-Gocron/internal/models"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/routers/base"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"gopkg.in/macaron.v1"
 )
 
@@ -86,6 +86,7 @@ func Remove(ctx *macaron.Context) string {
 func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	var params models.CommonMap = models.CommonMap{}
 	params["TaskId"] = ctx.QueryInt("task_id")
+	params["Keyword"] = ctx.QueryTrim("keyword")
 	params["Protocol"] = ctx.QueryInt("protocol")
 	status := ctx.QueryInt("status")
 	if status >= 0 {

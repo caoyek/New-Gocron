@@ -1,10 +1,12 @@
 <template>
   <el-container>
-    <el-main>
-      <el-form ref="form" :model="form" :rules="formRules" label-width="100px" style="width: 500px;">
-        <el-form-item>
+    <el-main class="user-form-main">
+      <div class="user-form-shell">
+        <div class="user-form-header">
+          <h2 class="user-form-title">{{form.id ? '编辑用户' : '新增用户'}}</h2>
+        </div>
+        <el-form ref="form" class="compact-user-form" :model="form" :rules="formRules" label-position="top">
           <el-input v-model="form.id" type="hidden"></el-input>
-        </el-form-item>
         <el-form-item label="用户名" prop="name">
           <el-input v-model="form.name"></el-input>
         </el-form-item>
@@ -20,28 +22,30 @@
           </el-form-item>
         </template>
         <el-form-item label="角色" prop="is_admin">
-          <el-radio-group v-model="form.is_admin">
-            <el-radio :label="0">普通用户</el-radio>
-            <el-radio :label="1">管理员</el-radio>
+          <el-radio-group v-model="form.is_admin" size="small">
+            <el-radio-button :label="0">普通用户</el-radio-button>
+            <el-radio-button :label="1">管理员</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">禁用</el-radio>
+          <el-radio-group v-model="form.status" size="small">
+            <el-radio-button :label="1">启用</el-radio-button>
+            <el-radio-button :label="0">禁用</el-radio-button>
           </el-radio-group>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="submit()">保存</el-button>
-          <el-button @click="cancel">取消</el-button>
-        </el-form-item>
-      </el-form>
+          <div class="user-form-actions">
+            <el-button size="small" @click="cancel">取消</el-button>
+            <el-button size="small" type="primary" icon="el-icon-check" @click="submit()">保存</el-button>
+          </div>
+        </el-form>
+      </div>
     </el-main>
   </el-container>
 </template>
 
 <script>
 import userService from '../../api/user'
+import './form.css'
 export default {
   name: 'user-edit',
   data: function () {

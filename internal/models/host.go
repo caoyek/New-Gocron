@@ -91,4 +91,9 @@ func (host *Host) parseWhere(session *xorm.Session, params CommonMap) {
 	if ok && name.(string) != "" {
 		session.And("name = ?", name)
 	}
+	keyword, ok := params["Keyword"]
+	if ok && keyword.(string) != "" {
+		likeKeyword := "%" + keyword.(string) + "%"
+		session.And("(CAST(id AS CHAR) LIKE ? OR alias LIKE ? OR name LIKE ?)", likeKeyword, likeKeyword, likeKeyword)
+	}
 }

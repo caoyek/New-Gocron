@@ -1,17 +1,18 @@
 <template>
   <el-container>
-    <system-sidebar></system-sidebar>
-    <el-main>
-      <el-pagination
-        background
-        layout="prev, pager, next, sizes, total"
-        :total="logTotal"
-        :page-size="20"
-        @size-change="changePageSize"
-        @current-change="changePage"
-        @prev-click="changePage"
-        @next-click="changePage">
-      </el-pagination>
+    <el-main class="system-log-main">
+      <div class="system-log-toolbar">
+        <el-pagination
+          background
+          layout="prev, pager, next, sizes, total"
+          :total="logTotal"
+          :page-size="20"
+          @size-change="changePageSize"
+          @current-change="changePage"
+          @prev-click="changePage"
+          @next-click="changePage">
+        </el-pagination>
+      </div>
       <el-table
         :data="logs"
         border
@@ -42,7 +43,6 @@
 </template>
 
 <script>
-import systemSidebar from './sidebar'
 import systemService from '../../api/system'
 export default {
   name: 'login-log',
@@ -59,7 +59,6 @@ export default {
   created () {
     this.search()
   },
-  components: {systemSidebar},
   methods: {
     changePage (page) {
       this.searchParams.page = page
@@ -78,3 +77,19 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.system-log-main {
+  overflow: hidden;
+}
+
+.system-log-toolbar {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 620px) {
+  .system-log-main {
+    overflow: auto;
+  }
+}
+</style>

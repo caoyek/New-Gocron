@@ -2,6 +2,8 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +38,11 @@ const (
 	TaskHttpMethodPost TaskHTTPMethod = 2
 )
 
+type TaskReference struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"`
+}
+
 // 任务
 type Task struct {
 	Id               int                  `json:"id" xorm:"int pk autoincr"`
@@ -45,7 +52,7 @@ type Task struct {
 	DependencyStatus TaskDependencyStatus `json:"dependency_status" xorm:"tinyint notnull default 1"`         // 依赖关系 1:强依赖 主任务执行成功, 依赖任务才会被执行 2:弱依赖
 	Spec             string               `json:"spec" xorm:"varchar(64) notnull"`                            // crontab
 	Protocol         TaskProtocol         `json:"protocol" xorm:"tinyint notnull index"`                      // 协议 1:http 2:系统命令
-	Command          string               `json:"command" xorm:"varchar(256) notnull"`                        // URL地址或shell命令
+	Command          string               `json:"command" xorm:"text notnull"`                                // URL地址或shell命令
 	HttpMethod       TaskHTTPMethod       `json:"http_method" xorm:"tinyint notnull default 1"`               // http请求方法
 	Timeout          int                  `json:"timeout" xorm:"mediumint notnull default 0"`                 // 任务执行超时时间(单位秒),0不限制
 	Multi            int8                 `json:"multi" xorm:"tinyint notnull default 1"`                     // 是否允许多实例运行
@@ -63,6 +70,10 @@ type Task struct {
 	BaseModel        `json:"-" xorm:"-"`
 	Hosts            []TaskHostDetail `json:"hosts" xorm:"-"`
 	NextRunTime      time.Time        `json:"next_run_time" xorm:"-"`
+	ParentTasks      []TaskReference  `json:"parent_tasks" xorm:"-"`
+	LastRunStatus    *Status          `json:"last_run_status" xorm:"-"`
+	LastRunTime      *time.Time       `json:"last_run_time" xorm:"-"`
+	LastRunDuration  int              `json:"last_run_duration" xorm:"-"`
 }
 
 func taskHostTableName() []string {
@@ -81,7 +92,7 @@ func (task *Task) Create() (insertId int, err error) {
 
 func (task *Task) UpdateBean(id int) (int64, error) {
 	return Db.ID(id).
-		Cols(`name,spec,protocol,command,timeout,multi,
+		Cols(`name,level,spec,protocol,command,timeout,multi,
 			retry_times,retry_interval,remark,notify_status,
 			notify_type,notify_receiver_id, dependency_task_id, dependency_status, tag,http_method, notify_keyword`).
 		Update(task)
@@ -157,6 +168,95 @@ func (task *Task) setHostsForTasks(tasks []Task) ([]Task, error) {
 	return tasks, err
 }
 
+func (task *Task) setParentTasksForTasks(tasks []Task) ([]Task, error) {
+	childIds := make(map[int]struct{})
+	for _, item := range tasks {
+		if item.Level == TaskLevelChild {
+			childIds[item.Id] = struct{}{}
+		}
+	}
+	if len(childIds) == 0 {
+		return tasks, nil
+	}
+
+	parents := make([]Task, 0)
+	err := Db.Where("level = ? AND dependency_task_id <> ?", TaskLevelParent, "").
+		Asc("id").
+		Cols("id", "name", "dependency_task_id").
+		Find(&parents)
+	if err != nil {
+		return nil, err
+	}
+
+	parentTasks := make(map[int][]TaskReference)
+	for _, parent := range parents {
+		for _, value := range strings.Split(parent.DependencyTaskId, ",") {
+			childId, err := strconv.Atoi(strings.TrimSpace(value))
+			if err != nil {
+				continue
+			}
+			if _, ok := childIds[childId]; ok {
+				parentTasks[childId] = append(parentTasks[childId], TaskReference{
+					Id:   parent.Id,
+					Name: parent.Name,
+				})
+			}
+		}
+	}
+
+	for i := range tasks {
+		if tasks[i].Level == TaskLevelChild {
+			tasks[i].ParentTasks = parentTasks[tasks[i].Id]
+		}
+	}
+
+	return tasks, nil
+}
+
+func (task *Task) setLastRunsForTasks(tasks []Task) ([]Task, error) {
+	if len(tasks) == 0 {
+		return tasks, nil
+	}
+
+	taskIds := make([]interface{}, len(tasks))
+	for i, item := range tasks {
+		taskIds[i] = item.Id
+	}
+
+	logs := make([]TaskLog, 0)
+	latestLogCondition := fmt.Sprintf(
+		"tl.id = (SELECT MAX(tl2.id) FROM %s tl2 WHERE tl2.task_id = tl.task_id)",
+		taskLogTableName(),
+	)
+	err := Db.Table(new(TaskLog)).Alias("tl").
+		In("tl.task_id", taskIds...).
+		Where(latestLogCondition).
+		Cols("tl.task_id", "tl.status", "tl.start_time", "tl.end_time").
+		Find(&logs)
+	if err != nil {
+		return nil, err
+	}
+
+	latestLogs := make(map[int]TaskLog, len(logs))
+	for _, log := range logs {
+		latestLogs[log.TaskId] = log
+	}
+
+	for i := range tasks {
+		log, ok := latestLogs[tasks[i].Id]
+		if !ok {
+			continue
+		}
+		status := log.Status
+		startTime := log.StartTime
+		tasks[i].LastRunStatus = &status
+		tasks[i].LastRunTime = &startTime
+		tasks[i].LastRunDuration = log.executionSeconds(time.Now())
+	}
+
+	return tasks, nil
+}
+
 // 判断任务名称是否存在
 func (task *Task) NameExist(name string, id int) (bool, error) {
 	if id > 0 {
@@ -205,7 +305,50 @@ func (task *Task) List(params CommonMap) ([]Task, error) {
 		return nil, err
 	}
 
-	return task.setHostsForTasks(list)
+	list, err = task.setHostsForTasks(list)
+	if err != nil {
+		return nil, err
+	}
+
+	list, err = task.setParentTasksForTasks(list)
+	if err != nil {
+		return nil, err
+	}
+
+	return task.setLastRunsForTasks(list)
+}
+
+// Children returns the fields needed by dependency task selectors.
+func (task *Task) Children() ([]Task, error) {
+	list := make([]Task, 0)
+	err := Db.Where("level = ?", TaskLevelChild).
+		Asc("id").
+		Cols("id", "name").
+		Find(&list)
+
+	return list, err
+}
+
+// Tags returns all non-empty task tags for list filtering.
+func (task *Task) Tags() ([]string, error) {
+	rows := make([]struct {
+		Tag string `xorm:"tag"`
+	}, 0)
+	err := Db.Table(task).
+		Where("tag <> ?", "").
+		Distinct("tag").
+		Asc("tag").
+		Find(&rows)
+	if err != nil {
+		return nil, err
+	}
+
+	tags := make([]string, len(rows))
+	for i, row := range rows {
+		tags[i] = row.Tag
+	}
+
+	return tags, nil
 }
 
 // 获取依赖任务列表
@@ -259,6 +402,11 @@ func (task *Task) parseWhere(session *xorm.Session, params CommonMap) {
 	name, ok := params["Name"]
 	if ok && name.(string) != "" {
 		session.And("t.name LIKE ?", "%"+name.(string)+"%")
+	}
+	keyword, ok := params["Keyword"]
+	if ok && keyword.(string) != "" {
+		likeKeyword := "%" + keyword.(string) + "%"
+		session.And("(CAST(t.id AS CHAR) LIKE ? OR t.name LIKE ?)", likeKeyword, likeKeyword)
 	}
 	protocol, ok := params["Protocol"]
 	if ok && protocol.(int) > 0 {

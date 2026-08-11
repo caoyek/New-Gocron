@@ -3,12 +3,11 @@ import Router from 'vue-router'
 import store from '../store/index'
 import NotFound from '../components/common/notFound'
 
+import Dashboard from '../pages/dashboard/index'
 import TaskList from '../pages/task/list'
-import TaskEdit from '../pages/task/edit'
 import TaskLog from '../pages/taskLog/list'
 
 import HostList from '../pages/host/list'
-import HostEdit from '../pages/host/edit'
 
 import UserList from '../pages/user/list'
 import UserEdit from '../pages/user/edit'
@@ -40,6 +39,14 @@ const router = new Router({
       redirect: '/task'
     },
     {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: Dashboard,
+      meta: {
+        noNeedAdmin: true
+      }
+    },
+    {
       path: '/install',
       name: 'install',
       component: Install,
@@ -58,13 +65,11 @@ const router = new Router({
     },
     {
       path: '/task/create',
-      name: 'task-create',
-      component: TaskEdit
+      redirect: '/task'
     },
     {
       path: '/task/edit/:id',
-      name: 'task-edit',
-      component: TaskEdit
+      redirect: '/task'
     },
     {
       path: '/task/log',
@@ -84,13 +89,11 @@ const router = new Router({
     },
     {
       path: '/host/create',
-      name: 'host-create',
-      component: HostEdit
+      redirect: '/host'
     },
     {
       path: '/host/edit/:id',
-      name: 'host-edit',
-      component: HostEdit
+      redirect: '/host'
     },
     {
       path: '/user',

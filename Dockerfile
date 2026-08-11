@@ -8,8 +8,8 @@ RUN go env -w GO111MODULE=on && \
 
 WORKDIR /app
 
-RUN git clone https://github.com/ouqiang/gocron.git \
-    && cd gocron \
+RUN git clone https://github.com/caoyek/New-Gocron.git \
+    && cd New-Gocron \
     && yarn config set ignore-engines true \
     && make install-vue \
     && make build-vue \
@@ -26,7 +26,7 @@ RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 
 WORKDIR /app
 
-COPY --from=builder /app/gocron/bin/gocron .
+COPY --from=builder /app/New-Gocron/bin/gocron .
 
 RUN chown -R app:app ./
 

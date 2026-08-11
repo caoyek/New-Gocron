@@ -1,54 +1,63 @@
 <template>
   <el-container>
-    <system-sidebar></system-sidebar>
-    <el-main>
+    <el-main class="system-settings-main">
       <notification-tab></notification-tab>
-      <el-form ref="form" :model="form" :rules="formRules" label-width="180px" style="width: 700px;">
-        <el-form-item label="Slack Webhook URL" prop="url">
-          <el-input v-model="form.url"></el-input>
-        </el-form-item>
-        <el-form-item label="模板" prop="template">
-          <el-input
-            type="textarea"
-            :rows="8"
-            placeholder=""
-            size="medium"
-            v-model="form.template">
-          </el-input>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="submit">保存</el-button>
-        </el-form-item>
-        <h3>Channel</h3>
-        <el-button type="primary" @click="createChannel">新增Channel</el-button> <br><br>
-        <el-tag
-          v-for="item in channels"
-          :key="item.id"
-          closable
-          @close="deleteChannel(item)"
-        >
-          {{item.name}}
-        </el-tag>
+      <el-form ref="form" class="system-settings-form" :model="form" :rules="formRules" label-position="top">
+        <section class="settings-section">
+          <div class="settings-section__header">
+            <h2>Slack 通知</h2>
+          </div>
+          <div class="settings-grid">
+            <el-form-item class="settings-span-full" label="Webhook URL" prop="url">
+              <el-input v-model="form.url"></el-input>
+            </el-form-item>
+            <el-form-item class="settings-span-full" label="通知模板" prop="template">
+              <el-input v-model="form.template" type="textarea" :rows="7"></el-input>
+            </el-form-item>
+          </div>
+          <div class="settings-actions">
+            <el-button size="small" type="primary" icon="el-icon-check" @click="submit">保存</el-button>
+          </div>
+        </section>
+
+        <section class="settings-section settings-collection-section">
+          <div class="settings-section__header">
+            <h2>Channel</h2>
+            <el-button size="small" type="success" icon="el-icon-plus" @click="createChannel">新增</el-button>
+          </div>
+          <div class="settings-tags">
+            <el-tag
+              v-for="item in channels"
+              :key="item.id"
+              size="small"
+              closable
+              @close="deleteChannel(item)">
+              {{item.name}}
+            </el-tag>
+            <span v-if="channels.length === 0" class="settings-empty">暂无 Channel</span>
+          </div>
+        </section>
       </el-form>
       <el-dialog
-        title=""
+        class="compact-settings-dialog"
+        title="新增 Channel"
         :visible.sync="dialogVisible"
-        width="30%">
-        <el-form :model="form">
-          <el-form-item label="Channel名称" >
+        width="420px">
+        <el-form class="settings-dialog-form" label-position="top">
+          <el-form-item label="Channel名称">
             <el-input v-model.trim="channel" v-focus></el-input>
           </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="saveChannel">确 定</el-button>
-          </el-form-item>
         </el-form>
+        <span slot="footer" class="settings-dialog-actions">
+          <el-button size="small" @click="dialogVisible = false">取消</el-button>
+          <el-button size="small" type="primary" @click="saveChannel">确定</el-button>
+        </span>
       </el-dialog>
     </el-main>
   </el-container>
 </template>
 
 <script>
-import systemSidebar from '../sidebar'
 import notificationTab from './tab'
 import notificationService from '../../../api/notification'
 export default {
@@ -72,7 +81,7 @@ export default {
       channel: ''
     }
   },
-  components: {notificationTab, systemSidebar},
+  components: {notificationTab},
   created () {
     this.init()
   },
@@ -114,15 +123,9 @@ export default {
       notificationService.slack((data) => {
         this.form.url = data.url
         this.form.template = data.template
-        this.channels = data.channels
+        this.channels = data.channels || []
       })
     }
   }
 }
 </script>
-
-<style scoped>
-  .el-tag + .el-tag {
-    margin-left: 10px;
-  }
-</style>

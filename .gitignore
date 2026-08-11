@@ -38,3 +38,5 @@ profile/*
 /gocron-node-package
 
 node_modules
+__pycache__/
+*.py[cod]

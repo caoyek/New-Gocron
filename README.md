@@ -1,10 +1,11 @@
-# gocron - 定时任务管理系统
-[![Downloads](https://img.shields.io/github/downloads/ouqiang/gocron/total.svg)](https://github.com/ouqiang/gocron/releases)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/ouqiang/gocron/blob/master/LICENSE)
-[![Release](https://img.shields.io/github/release/ouqiang/gocron.svg?label=Release)](https://github.com/ouqiang/gocron/releases)
+# New-Gocron - 定时任务管理系统
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/caoyek/New-Gocron)
+[![License](https://img.shields.io/github/license/caoyek/New-Gocron.svg)](https://github.com/caoyek/New-Gocron/blob/master/LICENSE)
+
+> New-Gocron 2.0 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 项目二次开发，保留原项目的开源许可证和版权声明。
 
 # 项目简介
-使用Go语言开发的轻量级定时任务集中调度和管理系统, 用于替代Linux-crontab [查看文档](https://github.com/ouqiang/gocron/wiki)
+使用Go语言开发的轻量级定时任务集中调度和管理系统，用于替代Linux-crontab。原项目文档可查看 [gocron Wiki](https://github.com/ouqiang/gocron/wiki)。
 
 原有的延时任务拆分为独立项目[延迟队列](https://github.com/ouqiang/delay-queue)  
 
@@ -24,9 +25,9 @@
 * 任务执行结果通知, 支持邮件、Slack、Webhook
 
 ### 截图
-![流程图](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/scheduler.png)
-![任务](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/task.png)
-![Slack](https://raw.githubusercontent.com/ouqiang/gocron/master/assets/screenshot/notification.png)
+![流程图](assets/screenshot/scheduler.png)
+![任务](assets/screenshot/task.png)
+![Slack](assets/screenshot/notification.png)
     
 ### 支持平台
 > Windows、Linux、Mac OS
@@ -36,9 +37,9 @@
 
 
 ## 下载
-[releases](https://github.com/ouqiang/gocron/releases)  
+[releases](https://github.com/caoyek/New-Gocron/releases)
 
-[版本升级](https://github.com/ouqiang/gocron/wiki/版本升级)
+[原项目版本升级说明](https://github.com/ouqiang/gocron/wiki/版本升级)
 
 ## 安装
 
@@ -57,7 +58,8 @@
 ### 源码安装
 
 - 安装Go 1.11+
-- `go get -d github.com/ouqiang/gocron`
+- `git clone https://github.com/caoyek/New-Gocron.git`
+- `cd New-Gocron`
 - `export GO111MODULE=on` 
 - 编译 `make`
 - 启动
@@ -68,7 +70,8 @@
 ### docker
 
 ```shell
-docker run --name gocron --link mysql:db -p 5920:5920 -d ouqg/gocron
+docker build -t new-gocron:2.0 .
+docker run --name new-gocron --link mysql:db -p 5920:5920 -d new-gocron:2.0
 ```
 
 配置: /app/conf/app.ini
@@ -92,7 +95,7 @@ docker run --name gocron --link mysql:db -p 5920:5920 -d ouqg/gocron
 `make run` 编译并运行
 
 `make package` 打包 
-> 生成当前系统的压缩包 gocron-v1.5-darwin-amd64.tar.gz gocron-node-v1.5-darwin-amd64.tar.gz
+> 生成当前系统的压缩包 gocron-v2.0-darwin-amd64.tar.gz gocron-node-v2.0-darwin-amd64.tar.gz
 
 `make package-all` 生成Windows、Linux、Mac的压缩包
 
@@ -133,9 +136,16 @@ docker run --name gocron --link mysql:db -p 5920:5920 -d ouqg/gocron
 * RPC框架 [gRPC](https://github.com/grpc/grpc)
 
 ## 反馈
-提交[issue](https://github.com/ouqiang/gocron/issues/new)
+提交 [Issue](https://github.com/caoyek/New-Gocron/issues/new)
 
 ## ChangeLog
+
+v2.0
+--------
+* 新增数据看板和任务执行统计
+* 重构任务、日志、节点、用户及推送设置页面
+* 优化任务搜索、编辑、查看和子任务管理流程
+* 扩展任务命令及数据库字段限制
 
 v1.5
 --------

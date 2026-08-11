@@ -7,15 +7,16 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/ouqiang/gocron/internal/modules/rpc/auth"
-	"github.com/ouqiang/gocron/internal/modules/rpc/server"
-	"github.com/ouqiang/gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/modules/rpc/auth"
+	"github.com/caoyek/New-Gocron/internal/modules/rpc/server"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
 	"github.com/ouqiang/goutil"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	AppVersion, BuildDate, GitCommit string
+	AppVersion           = "2.0"
+	BuildDate, GitCommit string
 )
 
 func main() {

@@ -1,27 +1,27 @@
 <template>
   <el-container>
     <el-main>
-      <el-form :inline="true" >
-        <el-row>
-          <el-form-item label="节点ID">
-            <el-input v-model.trim="searchParams.id"></el-input>
-          </el-form-item>
-          <el-form-item label="主机名">
-            <el-input v-model.trim="searchParams.name"></el-input>
-          </el-form-item>
+      <el-form class="host-filter-form">
+        <div class="host-filter-grid">
           <el-form-item>
-            <el-button type="primary" @click="search()">搜索</el-button>
+            <el-input
+              v-model.trim="searchParams.keyword"
+              clearable
+              placeholder="搜索节点..."
+              @keyup.enter.native="search()">
+            </el-input>
           </el-form-item>
-        </el-row>
+          <div class="host-filter-actions">
+            <el-button size="small" type="primary" icon="el-icon-search" @click="search()">搜索</el-button>
+            <el-button
+              v-if="this.$store.getters.user.isAdmin"
+              size="small"
+              type="success"
+              icon="el-icon-plus"
+              @click="toEdit(null)">新增</el-button>
+          </div>
+        </div>
       </el-form>
-      <el-row type="flex" justify="end">
-        <el-col :span="2">
-          <el-button type="primary" v-if="this.$store.getters.user.isAdmin"  @click="toEdit(null)">新增</el-button>
-        </el-col>
-        <el-col :span="2">
-          <el-button type="info" @click="refresh">刷新</el-button>
-        </el-col>
-      </el-row>
       <el-pagination
         background
         layout="prev, pager, next, sizes, total"
@@ -55,46 +55,52 @@
         </el-table-column>
         <el-table-column label="查看任务">
           <template slot-scope="scope">
-            <el-button type="success" @click="toTasks(scope.row)">查看任务</el-button>
+            <el-button size="mini" type="success" @click="toTasks(scope.row)">任务</el-button>
           </template>
         </el-table-column>
         <el-table-column
           prop="remark"
           label="备注">
         </el-table-column>
-        <el-table-column label="操作" width="300" v-if="this.isAdmin">
+        <el-table-column label="操作" width="220" v-if="this.isAdmin">
           <template slot-scope="scope">
-            <el-row>
-              <el-button type="primary" @click="toEdit(scope.row)">编辑</el-button>
-              <el-button type="info" @click="ping(scope.row)">测试连接</el-button>
-              <el-button type="danger" @click="remove(scope.row)">删除</el-button>
-            </el-row>
-            <br>
+            <div class="host-actions">
+              <el-button size="mini" type="primary" @click="toEdit(scope.row)">编辑</el-button>
+              <el-button size="mini" type="info" @click="ping(scope.row)">测试</el-button>
+              <el-button size="mini" type="danger" @click="remove(scope.row)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
+      <host-editor
+        :visible.sync="editorVisible"
+        :host-id="editingHostId"
+        @saved="handleHostSaved">
+      </host-editor>
     </el-main>
   </el-container>
 </template>
 
 <script>
 import hostService from '../../api/host'
+import hostEditor from './edit'
 export default {
   name: 'host-list',
   data () {
     return {
       hosts: [],
       hostTotal: 0,
+      editorVisible: false,
+      editingHostId: null,
       searchParams: {
         page_size: 20,
         page: 1,
-        id: '',
-        name: '',
-        alias: ''
+        keyword: ''
       },
       isAdmin: this.$store.getters.user.isAdmin
     }
   },
+  components: {hostEditor},
   created () {
     this.search()
   },
@@ -118,7 +124,7 @@ export default {
     },
     remove (item) {
       this.$appConfirm(() => {
-        hostService.remove(item.id, () => this.refresh())
+        hostService.remove(item.id, () => this.search())
       })
     },
     ping (item) {
@@ -127,18 +133,11 @@ export default {
       })
     },
     toEdit (item) {
-      let path = ''
-      if (item === null) {
-        path = '/host/create'
-      } else {
-        path = `/host/edit/${item.id}`
-      }
-      this.$router.push(path)
+      this.editingHostId = item ? item.id : null
+      this.editorVisible = true
     },
-    refresh () {
-      this.search(() => {
-        this.$message.success('刷新成功')
-      })
+    handleHostSaved () {
+      this.search()
     },
     toTasks (item) {
       this.$router.push(
@@ -152,3 +151,41 @@ export default {
   }
 }
 </script>
+<style scoped>
+.host-filter-form {
+  margin-bottom: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.host-filter-grid {
+  display: grid;
+  grid-template-columns: 260px auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.host-filter-grid .el-form-item {
+  margin-bottom: 0;
+}
+
+.host-filter-actions,
+.host-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.host-filter-actions .el-button + .el-button,
+.host-actions .el-button + .el-button {
+  margin-left: 0;
+}
+
+@media (max-width: 620px) {
+  .host-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

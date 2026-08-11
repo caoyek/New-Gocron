@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/caoyek/New-Gocron/internal/models"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/rpc/client"
+	"github.com/caoyek/New-Gocron/internal/modules/rpc/grpcpool"
+	"github.com/caoyek/New-Gocron/internal/modules/rpc/proto"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/routers/base"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"github.com/go-macaron/binding"
-	"github.com/ouqiang/gocron/internal/models"
-	"github.com/ouqiang/gocron/internal/modules/logger"
-	"github.com/ouqiang/gocron/internal/modules/rpc/client"
-	"github.com/ouqiang/gocron/internal/modules/rpc/grpcpool"
-	"github.com/ouqiang/gocron/internal/modules/rpc/proto"
-	"github.com/ouqiang/gocron/internal/modules/utils"
-	"github.com/ouqiang/gocron/internal/routers/base"
-	"github.com/ouqiang/gocron/internal/service"
 	macaron "gopkg.in/macaron.v1"
 )
 
@@ -198,6 +198,7 @@ func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	var params = models.CommonMap{}
 	params["Id"] = ctx.QueryInt("id")
 	params["Name"] = ctx.QueryTrim("name")
+	params["Keyword"] = ctx.QueryTrim("keyword")
 	base.ParsePageAndPageSize(ctx, params)
 
 	return params

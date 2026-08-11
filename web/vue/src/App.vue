@@ -1,30 +1,28 @@
 <template>
-  <el-container>
-    <el-header>
-      <app-header></app-header>
-      <app-nav-menu></app-nav-menu>
-    </el-header>
-    <el-main >
+  <el-container class="app-shell">
+    <app-nav-menu v-if="showNavigation"></app-nav-menu>
+    <el-main class="app-shell__content">
       <div id="main-container" v-cloak>
         <router-view/>
       </div>
     </el-main>
-    <el-footer>
-      <app-footer></app-footer>
-    </el-footer>
   </el-container>
 </template>
 
 <script>
 import installService from './api/install'
-import appHeader from './components/common/header.vue'
 import appNavMenu from './components/common/navMenu.vue'
-import appFooter from './components/common/footer.vue'
 
 export default {
   name: 'App',
   data () {
     return {}
+  },
+  computed: {
+    showNavigation () {
+      const path = this.$route.path
+      return this.$store.getters.login && path !== '/install' && path !== '/user/login'
+    }
   },
   created () {
     installService.status((data) => {
@@ -34,9 +32,7 @@ export default {
     })
   },
   components: {
-    appHeader,
-    appNavMenu,
-    appFooter
+    appNavMenu
   }
 }
 </script>
@@ -44,27 +40,52 @@ export default {
   [v-cloak] {
     display: none !important;
   }
-  body {
-    margin:0;
-  }
-  .el-header {
-    padding:0;
-    margin:0;
-  }
-  .el-container {
-    padding:0;
-    margin:0;
-    width: 100%;
-  }
-  .el-main {
-    padding:0;
-    margin:0;
-  }
-  #main-container .el-main {
-    height: calc(100vh - 116px);
-    margin:20px 20px 0 20px;
-  }
-  .el-aside .el-menu {
+
+  html,
+  body,
+  #app {
     height: 100%;
+  }
+
+  body {
+    min-width: 320px;
+    margin: 0;
+  }
+
+  .app-shell {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .app-shell__content.el-main {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  #main-container {
+    height: 100%;
+  }
+
+  #main-container > .el-container {
+    min-width: 0;
+    height: 100%;
+  }
+
+  #main-container .el-main {
+    height: calc(100vh - 40px);
+    margin: 20px;
+    padding: 0;
+  }
+
+  @media (max-width: 680px) {
+    #main-container .el-main {
+      height: calc(100vh - 24px);
+      margin: 12px;
+    }
   }
 </style>

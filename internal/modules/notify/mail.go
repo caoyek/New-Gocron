@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/caoyek/New-Gocron/internal/models"
+	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/caoyek/New-Gocron/internal/modules/utils"
 	"github.com/go-gomail/gomail"
-	"github.com/ouqiang/gocron/internal/models"
-	"github.com/ouqiang/gocron/internal/modules/logger"
-	"github.com/ouqiang/gocron/internal/modules/utils"
 )
 
 // @author qiang.ou<qingqianludao@gmail.com>

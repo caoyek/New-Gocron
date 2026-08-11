@@ -1,6 +1,6 @@
 # New-Gocron - 定时任务管理系统
 [![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/caoyek/New-Gocron)
-[![License](https://img.shields.io/github/license/caoyek/New-Gocron.svg)](https://github.com/caoyek/New-Gocron/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/caoyek/New-Gocron.svg)](https://github.com/caoyek/New-Gocron/blob/main/LICENSE)
 
 > New-Gocron 2.0 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 项目二次开发，保留原项目的开源许可证和版权声明。
 

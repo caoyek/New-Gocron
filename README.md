@@ -27,6 +27,8 @@ New-Gocron 是一个定时任务管理系统，当前版本为 2.0。项目提�
 - 任务列表增加上次执行结果、执行时间和耗时。
 - 执行、编辑、保存等操作完成后自动刷新列表数据。
 - Cron 表达式提供每天、每周和每月快捷设置。
+- HTTP 任务超时由任务配置控制，支持 `0–86400` 秒；`0` 表示不限制，新增 HTTP 任务默认为 `3600` 秒。
+- 任务通知支持包含、不包含、通配符、正则表达式和数值比较规则，并可选择满足任意或全部规则。
 
 ### 后端与数据库
 
@@ -34,6 +36,13 @@ New-Gocron 是一个定时任务管理系统，当前版本为 2.0。项目提�
 - 修复异常数据库中任务删除字段类型不正确导致的删除失败。
 - 增加 New-Gocron 2.0 数据库自动迁移和独立升级命令。
 - 增加数据看板统计接口和任务列表最近执行信息。
+
+### 登录安全
+
+- 同时按来源 IP 和登录账号统计失败次数，统计周期、触发次数和封禁时长可在后台配置。
+- 记录登录成功、密码错误、封禁拒绝和白名单拒绝事件。
+- 支持后台 IP 白名单，可填写单个 IP 或 CIDR 网段。
+- 在“系统 -> 登录安全”中管理策略、查看当前封禁并手动解封。
 
 ## 二进制部署
 
@@ -103,7 +112,17 @@ New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 | --- | --- | --- | --- |
 | `{prefix}task` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
 | `{prefix}task_log` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
+| `{prefix}task` | `notify_keyword` | `VARCHAR(128)` | `TEXT NOT NULL` |
 | `{prefix}task` | `deleted` | 部分异常数据库为数值类型 | MySQL `DATETIME NULL` / PostgreSQL `TIMESTAMP NULL` |
+
+登录安全功能还会新增两张表：
+
+| 表 | 用途 |
+| --- | --- |
+| `{prefix}login_security_event` | 保存所有登录成功和失败事件 |
+| `{prefix}login_block` | 保存 IP 和账号的封禁状态 |
+
+登录安全策略保存在已有的 `{prefix}setting` 表中，`code` 为 `login_security`，`key` 为 `policy`。
 
 其中 `{prefix}` 是 `conf/app.ini` 中 `db.prefix` 配置的表前缀。前缀会直接与表名拼接，例如 `db.prefix = gocron` 对应的任务表为 `gocrontask`。
 
@@ -129,7 +148,7 @@ Windows：
 .\gocron.exe web
 ```
 
-`db-upgrade` 会读取程序目录中的 `conf/app.ini`，只执行 New-Gocron 2.0 所需的字段调整，不启动 Web 服务或任务调度。该命令可以重复执行。
+`db-upgrade` 会读取程序目录中的 `conf/app.ini`，执行 New-Gocron 2.0 所需的字段调整并创建登录安全数据表，不启动 Web 服务或任务调度。该命令可以重复执行。
 
 正常从旧版本首次启动 New-Gocron 2.0 时也会进入版本迁移流程，但生产环境建议先单独执行 `db-upgrade`，确认数据库升级成功后再启动服务。
 
@@ -241,6 +260,7 @@ make package-all
 - 升级或迁移前必须备份数据库和配置文件。
 - 从线上数据库复制数据到开发环境后，应先停用所有任务，避免开发环境误执行线上任务。
 - 生产环境建议使用进程管理工具托管 `gocron web` 和 `gocron-node`，并限制管理端及任务节点端口的访问范围。
+- 如果 Web 服务经过 Nginx、Caddy 等反向代理，应在代理或防火墙层同时配置后台 IP 白名单；应用层默认使用 TCP 对端 IP，不信任可伪造的请求头。
 
 ## 问题反馈
 

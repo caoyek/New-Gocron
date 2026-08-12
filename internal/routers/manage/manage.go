@@ -2,10 +2,14 @@ package manage
 
 import (
 	"encoding/json"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/caoyek/New-Gocron/internal/models"
 	"github.com/caoyek/New-Gocron/internal/modules/logger"
 	"github.com/caoyek/New-Gocron/internal/modules/utils"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"gopkg.in/macaron.v1"
 )
 
@@ -125,6 +129,81 @@ func UpdateWebHook(ctx *macaron.Context) string {
 	err := settingModel.UpdateWebHook(url, template)
 
 	return utils.JsonResponseByErr(err)
+}
+
+func LoginSecurity(ctx *macaron.Context) string {
+	jsonResp := utils.JsonResponse{}
+	policy, err := service.LoginSecurityPolicy()
+	if err != nil {
+		return jsonResp.CommonFailure("读取登录安全配置失败", err)
+	}
+	blocks, err := new(models.LoginBlock).ListActive(time.Now())
+	if err != nil {
+		return jsonResp.CommonFailure("读取封禁列表失败", err)
+	}
+
+	return jsonResp.Success(utils.SuccessContent, map[string]interface{}{
+		"policy":  policy,
+		"blocks":  blocks,
+		"peer_ip": service.RequestPeerIP(ctx),
+	})
+}
+
+func UpdateLoginSecurity(ctx *macaron.Context) string {
+	jsonResp := utils.JsonResponse{}
+	windowMinutes, err := strconv.Atoi(ctx.QueryTrim("window_minutes"))
+	if err != nil || windowMinutes < 1 || windowMinutes > 1440 {
+		return jsonResp.CommonFailure("统计周期必须为 1-1440 分钟")
+	}
+	maxFailures, err := strconv.Atoi(ctx.QueryTrim("max_failures"))
+	if err != nil || maxFailures < 1 || maxFailures > 100 {
+		return jsonResp.CommonFailure("失败次数必须为 1-100 次")
+	}
+	blockMinutes, err := strconv.Atoi(ctx.QueryTrim("block_minutes"))
+	if err != nil || blockMinutes < 1 || blockMinutes > 10080 {
+		return jsonResp.CommonFailure("封禁时长必须为 1-10080 分钟")
+	}
+	whitelist, err := service.NormalizeWhitelist(ctx.Query("whitelist"))
+	if err != nil {
+		return jsonResp.CommonFailure(err.Error())
+	}
+	whitelistEnabled := parseBool(ctx.QueryTrim("whitelist_enabled"))
+	peerIP := service.RequestPeerIP(ctx)
+	if whitelistEnabled && !service.IPAllowed(peerIP, whitelist) {
+		return jsonResp.CommonFailure("当前访问 IP " + peerIP + " 不在白名单中，无法启用")
+	}
+	policy := models.LoginSecurityPolicy{
+		BlockEnabled:     parseBool(ctx.QueryTrim("block_enabled")),
+		WindowMinutes:    windowMinutes,
+		MaxFailures:      maxFailures,
+		BlockMinutes:     blockMinutes,
+		WhitelistEnabled: whitelistEnabled,
+		Whitelist:        whitelist,
+	}
+	if err = new(models.Setting).UpdateLoginSecurity(policy); err != nil {
+		return jsonResp.CommonFailure("保存登录安全配置失败", err)
+	}
+
+	return jsonResp.Success("保存成功", nil)
+}
+
+func RemoveLoginBlock(ctx *macaron.Context) string {
+	jsonResp := utils.JsonResponse{}
+	id := ctx.ParamsInt(":id")
+	if id <= 0 {
+		return jsonResp.CommonFailure("封禁记录不存在")
+	}
+	if err := new(models.LoginBlock).Remove(id); err != nil {
+		return jsonResp.CommonFailure("解除封禁失败", err)
+	}
+
+	return jsonResp.Success("已解除封禁", nil)
+}
+
+func parseBool(value string) bool {
+	value = strings.ToLower(strings.TrimSpace(value))
+
+	return value == "1" || value == "true" || value == "on"
 }
 
 // endregion

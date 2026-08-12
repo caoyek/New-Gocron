@@ -21,6 +21,7 @@ import NotificationWebhook from '../pages/system/notification/webhook'
 
 import Install from '../pages/install/index'
 import LoginLog from '../pages/system/loginLog'
+import LoginSecurity from '../pages/system/loginSecurity'
 
 Vue.use(Router)
 
@@ -154,6 +155,11 @@ const router = new Router({
       path: '/system/login-log',
       name: 'login-log',
       component: LoginLog
+    },
+    {
+      path: '/system/login-security',
+      name: 'login-security',
+      component: LoginSecurity
     }
   ]
 })

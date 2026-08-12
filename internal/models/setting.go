@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"errors"
 )
 
 type Setting struct {
@@ -55,6 +56,30 @@ const (
 	WebhookUrlKey      = "url"
 )
 
+const (
+	LoginSecurityCode      = "login_security"
+	LoginSecurityPolicyKey = "policy"
+)
+
+type LoginSecurityPolicy struct {
+	BlockEnabled     bool     `json:"block_enabled"`
+	WindowMinutes    int      `json:"window_minutes"`
+	MaxFailures      int      `json:"max_failures"`
+	BlockMinutes     int      `json:"block_minutes"`
+	WhitelistEnabled bool     `json:"whitelist_enabled"`
+	Whitelist        []string `json:"whitelist"`
+}
+
+func DefaultLoginSecurityPolicy() LoginSecurityPolicy {
+	return LoginSecurityPolicy{
+		BlockEnabled:  true,
+		WindowMinutes: 10,
+		MaxFailures:   5,
+		BlockMinutes:  30,
+		Whitelist:     make([]string, 0),
+	}
+}
+
 // 初始化基本字段 邮件、slack等
 func (setting *Setting) InitBasicField() {
 	setting.Code = SlackCode
@@ -90,6 +115,13 @@ func (setting *Setting) InitBasicField() {
 	setting.Code = WebhookCode
 	setting.Key = WebhookUrlKey
 	setting.Value = ""
+	Db.Insert(setting)
+	setting.Id = 0
+
+	policy, _ := json.Marshal(DefaultLoginSecurityPolicy())
+	setting.Code = LoginSecurityCode
+	setting.Key = LoginSecurityPolicyKey
+	setting.Value = string(policy)
 	Db.Insert(setting)
 }
 
@@ -289,6 +321,62 @@ func (setting *Setting) UpdateWebHook(url, template string) error {
 	Db.Cols("value").Update(setting, Setting{Code: WebhookCode, Key: WebhookTemplateKey})
 
 	return nil
+}
+
+func (setting *Setting) LoginSecurity() (LoginSecurityPolicy, error) {
+	policy := DefaultLoginSecurityPolicy()
+	stored, has, err := findLoginSecuritySetting()
+	if err != nil || !has || stored.Value == "" {
+		return policy, err
+	}
+	if err = json.Unmarshal([]byte(stored.Value), &policy); err != nil {
+		return DefaultLoginSecurityPolicy(), err
+	}
+	if policy.WindowMinutes <= 0 || policy.MaxFailures <= 0 || policy.BlockMinutes <= 0 {
+		return DefaultLoginSecurityPolicy(), errors.New("登录安全配置无效")
+	}
+	if policy.Whitelist == nil {
+		policy.Whitelist = make([]string, 0)
+	}
+
+	return policy, nil
+}
+
+func (setting *Setting) UpdateLoginSecurity(policy LoginSecurityPolicy) error {
+	value, err := json.Marshal(policy)
+	if err != nil {
+		return err
+	}
+	stored, has, err := findLoginSecuritySetting()
+	if err != nil {
+		return err
+	}
+	if has {
+		stored.Value = string(value)
+		_, err = Db.ID(stored.Id).Cols("value").Update(stored)
+		return err
+	}
+
+	setting.Code = LoginSecurityCode
+	setting.Key = LoginSecurityPolicyKey
+	setting.Value = string(value)
+	_, err = Db.Insert(setting)
+
+	return err
+}
+
+func findLoginSecuritySetting() (*Setting, bool, error) {
+	list := make([]Setting, 0)
+	if err := Db.Where("code = ?", LoginSecurityCode).Find(&list); err != nil {
+		return nil, false, err
+	}
+	for i := range list {
+		if list[i].Key == LoginSecurityPolicyKey {
+			return &list[i], true, nil
+		}
+	}
+
+	return new(Setting), false, nil
 }
 
 // endregion

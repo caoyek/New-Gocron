@@ -212,13 +212,7 @@ type Handler interface {
 // HTTP任务
 type HTTPHandler struct{}
 
-// http任务执行时间不超过300秒
-const HttpExecTimeout = 300
-
 func (h *HTTPHandler) Run(taskModel models.Task, taskUniqueId int64) (result string, err error) {
-	if taskModel.Timeout <= 0 || taskModel.Timeout > HttpExecTimeout {
-		taskModel.Timeout = HttpExecTimeout
-	}
 	var resp httpclient.ResponseWrapper
 	if taskModel.HttpMethod == models.TaskHTTPMethodGet {
 		resp = httpclient.Get(taskModel.Command, taskModel.Timeout)
@@ -432,7 +426,12 @@ func SendNotification(taskModel models.Task, taskResult TaskResult) {
 	}
 	if taskModel.NotifyStatus == 3 {
 		// 关键字匹配通知
-		if !strings.Contains(taskResult.Result, taskModel.NotifyKeyword) {
+		matched, err := MatchNotificationRules(taskResult.Result, taskModel.NotifyKeyword)
+		if err != nil {
+			logger.Errorf("任务通知规则解析失败#任务ID-%d#%s", taskModel.Id, err.Error())
+			return
+		}
+		if !matched {
 			return
 		}
 	}

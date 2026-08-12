@@ -61,7 +61,7 @@ type Task struct {
 	NotifyStatus     int8                 `json:"notify_status" xorm:"tinyint notnull default 1"`             // 任务执行结束是否通知 0: 不通知 1: 失败通知 2: 执行结束通知 3: 任务执行结果关键字匹配通知
 	NotifyType       int8                 `json:"notify_type" xorm:"tinyint notnull default 0"`               // 通知类型 1: 邮件 2: slack 3: webhook
 	NotifyReceiverId string               `json:"notify_receiver_id" xorm:"varchar(256) notnull default '' "` // 通知接受者ID, setting表主键ID，多个ID逗号分隔
-	NotifyKeyword    string               `json:"notify_keyword" xorm:"varchar(128) notnull default '' "`
+	NotifyKeyword    string               `json:"notify_keyword" xorm:"text notnull"`
 	Tag              string               `json:"tag" xorm:"varchar(32) notnull default ''"`
 	Remark           string               `json:"remark" xorm:"varchar(100) notnull default ''"` // 备注
 	Status           Status               `json:"status" xorm:"tinyint notnull index default 0"` // 状态 1:正常 0:停止

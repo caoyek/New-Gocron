@@ -130,9 +130,15 @@ func initModule() {
 
 	// 初始化DB
 	models.Db = models.CreateDb()
-
+	migration := new(models.Migration)
+	if err = migration.EnsureLoginSecurityTables(); err != nil {
+		logger.Fatal("初始化登录安全数据表失败", err)
+	}
 	// 版本升级
 	upgradeIfNeed()
+	if err = migration.EnsureNotificationRuleSchema(); err != nil {
+		logger.Fatal("初始化通知匹配规则字段失败", err)
+	}
 
 	// 初始化定时任务
 	service.ServiceTask.Initialize()

@@ -126,7 +126,7 @@
                 <el-form-item class="span-4" label="超时时间" prop="timeout">
                   <div class="field-with-help">
                     <el-input v-model.number.trim="form.timeout"><template slot="append">秒</template></el-input>
-                    <el-tooltip content="任务执行超时后强制结束，取值 0–86400 秒；0 表示不限制" placement="top">
+                    <el-tooltip content="任务执行超时后强制结束，取值 0–86400 秒；0 表示不限制，新增 HTTP 任务默认 3600 秒" placement="top">
                       <button class="field-help-button" type="button" aria-label="任务超时时间说明"><i class="el-icon-warning"></i></button>
                     </el-tooltip>
                   </div>
@@ -163,8 +163,36 @@
                     <el-option v-for="item in slackChannels" :key="item.id" :label="item.name" :value="item.id"></el-option>
                   </el-select>
                 </el-form-item>
-                <el-form-item v-if="form.notify_status === 4" class="span-12" label="通知关键字" prop="notify_keyword">
-                  <el-input v-model.trim="form.notify_keyword" placeholder="匹配任务执行输出中的关键字"></el-input>
+                <el-form-item v-if="form.notify_status === 4" class="span-12 notification-rule-form-item" label="输出匹配规则">
+                  <div class="notification-rule-toolbar">
+                    <span>满足</span>
+                    <el-radio-group v-model="notificationRuleMode" size="mini">
+                      <el-radio-button label="any">任意规则</el-radio-button>
+                      <el-radio-button label="all">全部规则</el-radio-button>
+                    </el-radio-group>
+                    <el-button size="mini" type="primary" plain icon="el-icon-plus" @click="addNotificationRule">添加规则</el-button>
+                  </div>
+                  <div class="notification-rule-list">
+                    <div v-for="(rule, index) in notificationRules" :key="rule.id" class="notification-rule-row">
+                      <el-select v-model="rule.type" class="notification-rule-type" size="small" @change="resetNotificationRule(rule)">
+                        <el-option v-for="item in notificationRuleTypes" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                      </el-select>
+                      <template v-if="rule.type === 'number'">
+                        <el-input v-model.trim="rule.field" class="notification-rule-field" size="small" placeholder="字段名，如库存数量"></el-input>
+                        <el-select v-model="rule.operator" class="notification-rule-operator" size="small">
+                          <el-option v-for="operator in notificationNumberOperators" :key="operator" :label="operator" :value="operator"></el-option>
+                        </el-select>
+                        <el-input v-model.number="rule.number" class="notification-rule-number" size="small" placeholder="比较值"></el-input>
+                      </template>
+                      <template v-else>
+                        <el-input v-model="rule.value" class="notification-rule-value" size="small" :placeholder="notificationRulePlaceholder(rule.type)"></el-input>
+                      </template>
+                      <el-checkbox v-model="rule.case_sensitive" class="notification-rule-case" size="small">区分大小写</el-checkbox>
+                      <el-tooltip content="删除规则" placement="top">
+                        <el-button class="notification-rule-delete" size="small" type="text" icon="el-icon-delete" :disabled="notificationRules.length === 1" @click="removeNotificationRule(index)"></el-button>
+                      </el-tooltip>
+                    </div>
+                  </div>
                 </el-form-item>
                 <el-form-item class="span-12 remark-form-item" label="备注">
                   <el-input v-model="form.remark" type="textarea" :rows="4" placeholder="选填，说明用途与注意事项"></el-input>
@@ -230,6 +258,20 @@ function emptyForm () {
   }
 }
 
+let notificationRuleId = 0
+
+function emptyNotificationRule (type) {
+  return {
+    id: ++notificationRuleId,
+    type: type || 'contains',
+    value: '',
+    case_sensitive: false,
+    field: '',
+    operator: '>',
+    number: null
+  }
+}
+
 export default {
   name: 'task-edit',
   props: {
@@ -272,9 +314,6 @@ export default {
         ],
         retry_interval: [
           {type: 'number', required: true, message: '请输入有效的任务执行失败，重试间隔时间', trigger: 'blur'}
-        ],
-        notify_keyword: [
-          {required: true, message: '请输入要匹配的任务执行输出关键字', trigger: 'blur'}
         ]
       },
       httpMethods: [
@@ -349,6 +388,16 @@ export default {
           label: '企微群推送'
         }
       ],
+      notificationRuleTypes: [
+        {value: 'contains', label: '包含文本'},
+        {value: 'not_contains', label: '不包含文本'},
+        {value: 'wildcard', label: '通配符'},
+        {value: 'regex', label: '正则表达式'},
+        {value: 'number', label: '数值比较'}
+      ],
+      notificationNumberOperators: ['>', '>=', '<', '<=', '=', '!='],
+      notificationRuleMode: 'any',
+      notificationRules: [emptyNotificationRule()],
       availableHosts: [],
       availableChildTasks: [],
       mailUsers: [],
@@ -372,6 +421,11 @@ export default {
     visible (value) {
       if (value) {
         this.open()
+      }
+    },
+    'form.protocol' (value) {
+      if (!this.taskId && value === 1 && this.form.timeout === 0) {
+        this.form.timeout = 3600
       }
     }
   },
@@ -403,6 +457,8 @@ export default {
       this.selectedDependencyTaskIds = []
       this.selectedMailNotifyIds = []
       this.selectedSlackNotifyIds = []
+      this.notificationRuleMode = 'any'
+      this.notificationRules = [emptyNotificationRule()]
       this.$nextTick(() => {
         if (this.$refs.form) {
           this.$refs.form.clearValidate()
@@ -431,7 +487,7 @@ export default {
       this.form.command = taskData.command
       this.form.timeout = taskData.timeout
       this.form.multi = taskData.multi ? 1 : 2
-      this.form.notify_keyword = taskData.notify_keyword
+      this.populateNotificationRules(taskData.notify_keyword)
       this.form.notify_status = taskData.notify_status + 1
       this.form.notify_receiver_id = taskData.notify_receiver_id == null ? '' : String(taskData.notify_receiver_id)
       if (taskData.notify_type) {
@@ -495,6 +551,94 @@ export default {
         }
       })
     },
+    populateNotificationRules (value) {
+      const keyword = value == null ? '' : String(value).trim()
+      if (!keyword) {
+        this.notificationRuleMode = 'any'
+        this.notificationRules = [emptyNotificationRule()]
+        return
+      }
+      try {
+        const parsed = JSON.parse(keyword)
+        if (parsed.format === 'notification_rules' && parsed.version === 1 && (parsed.mode === 'any' || parsed.mode === 'all') && Array.isArray(parsed.rules) && parsed.rules.length > 0) {
+          this.notificationRuleMode = parsed.mode
+          this.notificationRules = parsed.rules.map((rule) => Object.assign(emptyNotificationRule(rule.type), rule))
+          return
+        }
+      } catch (e) {
+        // Existing plain text values remain compatible as a contains rule.
+      }
+      const legacyRule = emptyNotificationRule('contains')
+      legacyRule.value = keyword
+      legacyRule.case_sensitive = true
+      this.notificationRuleMode = 'any'
+      this.notificationRules = [legacyRule]
+    },
+    addNotificationRule () {
+      if (this.notificationRules.length >= 20) {
+        this.$message.error('通知匹配规则不能超过20条')
+        return
+      }
+      this.notificationRules.push(emptyNotificationRule())
+    },
+    removeNotificationRule (index) {
+      if (this.notificationRules.length > 1) {
+        this.notificationRules.splice(index, 1)
+      }
+    },
+    resetNotificationRule (rule) {
+      rule.value = ''
+      rule.field = ''
+      rule.operator = '>'
+      rule.number = null
+      rule.case_sensitive = false
+    },
+    notificationRulePlaceholder (type) {
+      const placeholders = {
+        contains: '输出中需要包含的文本',
+        not_contains: '输出中不能包含的文本',
+        wildcard: '例如：订单*失败，? 匹配单个字符',
+        regex: '请输入 Go 正则表达式'
+      }
+      return placeholders[type] || '请输入匹配内容'
+    },
+    serializeNotificationRules () {
+      const rules = []
+      for (let index = 0; index < this.notificationRules.length; index++) {
+        const source = this.notificationRules[index]
+        if (source.type === 'number') {
+          const field = source.field == null ? '' : String(source.field).trim()
+          const number = Number(source.number)
+          if (!field) {
+            this.$message.error(`第${index + 1}条规则请输入数值字段`)
+            return false
+          }
+          if (source.number === '' || source.number == null || !Number.isFinite(number)) {
+            this.$message.error(`第${index + 1}条规则请输入有效比较值`)
+            return false
+          }
+          rules.push({
+            type: 'number',
+            field: field,
+            operator: source.operator,
+            number: number,
+            case_sensitive: source.case_sensitive === true
+          })
+          continue
+        }
+        const value = source.value == null ? '' : String(source.value).trim()
+        if (!value) {
+          this.$message.error(`第${index + 1}条规则请输入匹配内容`)
+          return false
+        }
+        rules.push({
+          type: source.type,
+          value: value,
+          case_sensitive: source.case_sensitive === true
+        })
+      }
+      return JSON.stringify({format: 'notification_rules', version: 1, mode: this.notificationRuleMode, rules: rules})
+    },
     submit () {
       this.$refs['form'].validate((valid) => {
         if (!valid) {
@@ -513,6 +657,13 @@ export default {
             this.$message.error('请选择Slack Channel')
             return false
           }
+        }
+        if (this.form.notify_status === 4) {
+          const serializedRules = this.serializeNotificationRules()
+          if (serializedRules === false) {
+            return false
+          }
+          this.form.notify_keyword = serializedRules
         }
 
         this.save()
@@ -771,6 +922,75 @@ export default {
 
 .notification-recipient /deep/ .el-input__inner {
   height: 30px !important;
+}
+
+.notification-rule-form-item /deep/ .el-form-item__content {
+  line-height: normal;
+}
+
+.notification-rule-toolbar {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #77736e;
+  font-size: 12px;
+}
+
+.notification-rule-toolbar > span {
+  white-space: nowrap;
+}
+
+.notification-rule-toolbar > .el-button {
+  margin-left: auto;
+}
+
+.notification-rule-toolbar > .el-radio-group {
+  width: auto;
+}
+
+.notification-rule-list {
+  display: grid;
+  gap: 6px;
+}
+
+.notification-rule-row {
+  display: grid;
+  min-width: 0;
+  align-items: center;
+  grid-template-columns: 96px minmax(80px, 1fr) 56px minmax(70px, 0.55fr) 88px 24px;
+  gap: 5px;
+}
+
+.notification-rule-type,
+.notification-rule-field,
+.notification-rule-value,
+.notification-rule-operator,
+.notification-rule-number {
+  min-width: 0;
+}
+
+.notification-rule-value {
+  grid-column: 2 / 5;
+}
+
+.notification-rule-case {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.notification-rule-case /deep/ .el-checkbox__label {
+  padding-left: 4px;
+  color: #77736e;
+  font-size: 12px;
+}
+
+.notification-rule-delete {
+  width: 24px;
+  box-sizing: border-box;
+  padding: 5px 4px;
+  color: #d04b44;
 }
 
 .remark-form-item /deep/ .el-textarea__inner {

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/caoyek/New-Gocron/internal/models"
 	"github.com/caoyek/New-Gocron/internal/modules/app"
 	"github.com/caoyek/New-Gocron/internal/modules/logger"
 	"github.com/caoyek/New-Gocron/internal/modules/utils"
@@ -19,6 +20,7 @@ import (
 	"github.com/caoyek/New-Gocron/internal/routers/task"
 	"github.com/caoyek/New-Gocron/internal/routers/tasklog"
 	"github.com/caoyek/New-Gocron/internal/routers/user"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"github.com/go-macaron/binding"
 	"github.com/go-macaron/gzip"
 	"github.com/go-macaron/toolbox"
@@ -127,6 +129,11 @@ func Register(m *macaron.Macaron) {
 			m.Get("", manage.WebHook)
 			m.Post("/update", manage.UpdateWebHook)
 		})
+		m.Group("/login-security", func() {
+			m.Get("", manage.LoginSecurity)
+			m.Post("/update", manage.UpdateLoginSecurity)
+			m.Post("/block/remove/:id", manage.RemoveLoginBlock)
+		})
 		m.Get("/login-log", loginlog.Index)
 	})
 
@@ -172,9 +179,38 @@ func RegisterMiddleware(m *macaron.Macaron) {
 	}
 	m.Use(macaron.Renderer())
 	m.Use(checkAppInstall)
+	m.Use(loginWhitelistAuth)
 	m.Use(ipAuth)
 	m.Use(userAuth)
 	m.Use(urlAuth)
+}
+
+func loginWhitelistAuth(ctx *macaron.Context) {
+	if !app.Installed {
+		return
+	}
+	policy, err := service.LoginSecurityPolicy()
+	if err != nil {
+		logger.Error("读取登录安全配置失败", err)
+		jsonResp := utils.JsonResponse{}
+		data := jsonResp.Failure(utils.ServerError, "读取登录安全配置失败")
+		ctx.Write([]byte(data))
+		return
+	}
+	if !policy.WhitelistEnabled {
+		return
+	}
+	peerIP := service.RequestPeerIP(ctx)
+	if service.IPAllowed(peerIP, policy.Whitelist) {
+		return
+	}
+	if strings.TrimRight(ctx.Req.URL.Path, "/") == "/user/login" {
+		_ = service.RecordLoginEvent(ctx.QueryTrim("username"), peerIP,
+			models.LoginResultWhitelistRejected, "IP 不在登录白名单")
+	}
+	jsonResp := utils.JsonResponse{}
+	data := jsonResp.Failure(utils.UnauthorizedError, "当前 IP 不允许访问后台")
+	ctx.Write([]byte(data))
 }
 
 // region 自定义中间件

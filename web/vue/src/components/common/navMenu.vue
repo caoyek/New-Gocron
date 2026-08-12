@@ -55,6 +55,10 @@
             <i class="el-icon-tickets"></i>
             <span slot="title">登录日志</span>
           </el-menu-item>
+          <el-menu-item index="/system/login-security">
+            <i class="el-icon-warning"></i>
+            <span slot="title">登录安全</span>
+          </el-menu-item>
         </el-menu>
       </section>
     </nav>
@@ -112,6 +116,9 @@ export default {
       }
       if (path.indexOf('/system/login-log') === 0) {
         return '/system/login-log'
+      }
+      if (path.indexOf('/system/login-security') === 0) {
+        return '/system/login-security'
       }
       if (path.indexOf('/system') === 0) {
         return '/system'

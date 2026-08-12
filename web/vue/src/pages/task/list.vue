@@ -95,7 +95,7 @@
         class-name="task-expand-column"
         label-class-name="task-expand-column">
         <template slot-scope="scope">
-          <div class="task-detail-panel">
+          <div class="task-detail-panel" :style="taskDetailPanelStyle">
             <div class="task-detail-settings">
               <section class="task-detail-section">
                 <h3 class="task-detail-section-title"><span>1</span>基本信息</h3>
@@ -361,6 +361,7 @@ export default {
       searchRequestId: 0,
       lastSearchParams: null,
       expandedTaskIds: [],
+      taskDetailPanelWidth: 0,
       searchParams: {
         page_size: 20,
         page: 1,
@@ -394,6 +395,12 @@ export default {
     }
   },
   computed: {
+    taskDetailPanelStyle () {
+      if (!this.taskDetailPanelWidth) {
+        return null
+      }
+      return {width: this.taskDetailPanelWidth + 'px'}
+    },
     tagColumnWidth () {
       if (!this.tags.length) {
         return 130
@@ -419,6 +426,9 @@ export default {
     this.startAutoRefresh()
     document.addEventListener('visibilitychange', this.handleVisibilityChange)
   },
+  mounted () {
+    window.addEventListener('resize', this.updateTaskDetailPanelWidth)
+  },
   beforeDestroy () {
     if (this.autoRefreshTimer) {
       clearInterval(this.autoRefreshTimer)
@@ -427,6 +437,7 @@ export default {
       clearTimeout(this.delayedRefreshTimer)
     }
     document.removeEventListener('visibilitychange', this.handleVisibilityChange)
+    window.removeEventListener('resize', this.updateTaskDetailPanelWidth)
   },
   filters: {
     formatLevel (value) {
@@ -496,6 +507,22 @@ export default {
     },
     handleExpandChange (row, expandedRows) {
       this.expandedTaskIds = expandedRows.map(item => item.id)
+      if (expandedRows.length > 0) {
+        this.$nextTick(this.updateTaskDetailPanelWidth)
+      }
+    },
+    updateTaskDetailPanelWidth () {
+      const table = this.$refs.taskTable && this.$refs.taskTable.$el
+      if (!table) {
+        return
+      }
+      const expandedCell = table.querySelector('.el-table__body-wrapper .el-table__expanded-cell')
+      let horizontalPadding = 0
+      if (expandedCell) {
+        const style = window.getComputedStyle(expandedCell)
+        horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight)
+      }
+      this.taskDetailPanelWidth = Math.max(0, table.clientWidth - horizontalPadding)
     },
     handleRowClick (row, event) {
       if (event.target.closest('button, a, input, .el-switch, .task-actions, .task-command-summary')) {
@@ -663,7 +690,13 @@ export default {
   }
 
   .task-list-main /deep/ .has-expanded-task .el-table__fixed-right {
+    z-index: 2;
     box-shadow: none;
+    pointer-events: none;
+  }
+
+  .task-list-main /deep/ .has-expanded-task .el-table__fixed-right .task-table-row {
+    pointer-events: auto;
   }
 
   .task-list-main /deep/ .has-expanded-task .el-table__fixed-right .el-table__expanded-cell {
@@ -678,6 +711,8 @@ export default {
   }
 
   .task-detail-panel {
+    position: relative;
+    z-index: 3;
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
     color: #2c2c2b;

@@ -143,6 +143,11 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 	taskModel.NotifyType = form.NotifyType - 1
 	taskModel.NotifyReceiverId = form.NotifyReceiverId
 	taskModel.NotifyKeyword = form.NotifyKeyword
+	if taskModel.NotifyStatus == 3 {
+		if _, err := service.ParseNotificationRules(taskModel.NotifyKeyword); err != nil {
+			return json.CommonFailure(err.Error())
+		}
+	}
 	taskModel.Spec = form.Spec
 	taskModel.Level = form.Level
 	taskModel.DependencyStatus = form.DependencyStatus
@@ -155,9 +160,6 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 		command := strings.ToLower(taskModel.Command)
 		if !strings.HasPrefix(command, "http://") && !strings.HasPrefix(command, "https://") {
 			return json.CommonFailure("请输入正确的URL地址")
-		}
-		if taskModel.Timeout > 300 {
-			return json.CommonFailure("HTTP任务超时时间不能超过300秒")
 		}
 	}
 

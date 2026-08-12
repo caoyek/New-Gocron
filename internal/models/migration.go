@@ -19,6 +19,7 @@ func (migration *Migration) Install(dbName string) error {
 	task := new(Task)
 	tables := []interface{}{
 		&User{}, task, &TaskLog{}, &Host{}, setting, &LoginLog{}, &TaskHost{},
+		&LoginSecurityEvent{}, &LoginBlock{},
 	}
 	for _, table := range tables {
 		exist, err := Db.IsTableExist(table)
@@ -264,15 +265,61 @@ func (m *Migration) upgradeFor200(session *xorm.Session) error {
 
 // UpgradeTo200 applies the v2.0 schema changes independently of the version file.
 func (m *Migration) UpgradeTo200() error {
+	if err := m.EnsureLoginSecurityTables(); err != nil {
+		return err
+	}
+	if err := m.EnsureNotificationRuleSchema(); err != nil {
+		return err
+	}
 	session := Db.NewSession()
 	defer session.Close()
 
 	return m.upgradeFor200(session)
 }
 
+func (m *Migration) EnsureNotificationRuleSchema() error {
+	session := Db.NewSession()
+	defer session.Close()
+	taskTable := TablePrefix + "task"
+
+	switch Db.Dialect().DBType() {
+	case core.MYSQL:
+		return ensureMySQLTextColumn(session, taskTable, "notify_keyword")
+	case core.POSTGRES:
+		return ensurePostgresTextColumn(session, taskTable, "notify_keyword")
+	default:
+		return fmt.Errorf("通知规则数据库升级不支持当前数据库类型: %s", Db.Dialect().DBType())
+	}
+}
+
+func (m *Migration) EnsureLoginSecurityTables() error {
+	if err := Db.Sync2(new(LoginSecurityEvent)); err != nil {
+		return err
+	}
+	if err := Db.Sync2(new(LoginBlock)); err != nil {
+		return err
+	}
+
+	eventTotal, err := Db.Count(new(LoginSecurityEvent))
+	if err != nil || eventTotal > 0 {
+		return err
+	}
+	eventTable := TablePrefix + "login_security_event"
+	legacyTable := TablePrefix + "login_log"
+	_, err = Db.Exec(fmt.Sprintf(
+		"INSERT INTO %s (username, ip, result, message, created) "+
+			"SELECT username, ip, '%s', '登录成功', created FROM %s",
+		eventTable, LoginResultSuccess, legacyTable))
+
+	return err
+}
+
 func (m *Migration) upgradeFor200MySQL(session *xorm.Session) error {
 	taskTable := TablePrefix + "task"
 	taskLogTable := TablePrefix + "task_log"
+	if err := ensureMySQLTextColumn(session, taskTable, "notify_keyword"); err != nil {
+		return err
+	}
 
 	for _, tableName := range []string{taskTable, taskLogTable} {
 		commandType, commandNullable, err := mysqlColumnDefinition(session, tableName, "command")
@@ -337,6 +384,9 @@ func (m *Migration) upgradeFor200MySQL(session *xorm.Session) error {
 func (m *Migration) upgradeFor200Postgres(session *xorm.Session) error {
 	taskTable := TablePrefix + "task"
 	taskLogTable := TablePrefix + "task_log"
+	if err := ensurePostgresTextColumn(session, taskTable, "notify_keyword"); err != nil {
+		return err
+	}
 
 	for _, tableName := range []string{taskTable, taskLogTable} {
 		commandType, commandNullable, err := postgresColumnDefinition(session, tableName, "command")
@@ -396,6 +446,56 @@ func (m *Migration) upgradeFor200Postgres(session *xorm.Session) error {
 	}
 	_, err = session.Exec(fmt.Sprintf(
 		"ALTER TABLE %s RENAME COLUMN deleted_v2 TO deleted", taskTable))
+
+	return err
+}
+
+func ensureMySQLTextColumn(session *xorm.Session, tableName, columnName string) error {
+	columnType, columnNullable, err := mysqlColumnDefinition(session, tableName, columnName)
+	if err != nil {
+		return err
+	}
+	if columnType == "text" && !columnNullable {
+		return nil
+	}
+	if columnType == "" {
+		_, err = session.Exec(fmt.Sprintf(
+			"ALTER TABLE `%s` ADD COLUMN `%s` TEXT NOT NULL", tableName, columnName))
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"UPDATE `%s` SET `%s` = '' WHERE `%s` IS NULL", tableName, columnName, columnName)); err != nil {
+		return err
+	}
+	_, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE `%s` MODIFY COLUMN `%s` TEXT NOT NULL", tableName, columnName))
+
+	return err
+}
+
+func ensurePostgresTextColumn(session *xorm.Session, tableName, columnName string) error {
+	columnType, columnNullable, err := postgresColumnDefinition(session, tableName, columnName)
+	if err != nil {
+		return err
+	}
+	if columnType == "text" && !columnNullable {
+		return nil
+	}
+	if columnType == "" {
+		_, err = session.Exec(fmt.Sprintf(
+			"ALTER TABLE %s ADD COLUMN %s TEXT NOT NULL DEFAULT ''", tableName, columnName))
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"UPDATE %s SET %s = '' WHERE %s IS NULL", tableName, columnName, columnName)); err != nil {
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE %s ALTER COLUMN %s TYPE TEXT", tableName, columnName)); err != nil {
+		return err
+	}
+	_, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE %s ALTER COLUMN %s SET NOT NULL", tableName, columnName))
 
 	return err
 }

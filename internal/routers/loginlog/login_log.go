@@ -9,7 +9,7 @@ import (
 )
 
 func Index(ctx *macaron.Context) string {
-	loginLogModel := new(models.LoginLog)
+	loginLogModel := new(models.LoginSecurityEvent)
 	params := models.CommonMap{}
 	base.ParsePageAndPageSize(ctx, params)
 	total, err := loginLogModel.Total()

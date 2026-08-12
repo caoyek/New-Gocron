@@ -10,6 +10,7 @@ import (
 	"github.com/caoyek/New-Gocron/internal/modules/logger"
 	"github.com/caoyek/New-Gocron/internal/modules/utils"
 	"github.com/caoyek/New-Gocron/internal/routers/base"
+	"github.com/caoyek/New-Gocron/internal/service"
 	"github.com/dgrijalva/jwt-go"
 	"gopkg.in/macaron.v1"
 )
@@ -224,20 +225,52 @@ func UpdateMyPassword(ctx *macaron.Context) string {
 func ValidateLogin(ctx *macaron.Context) string {
 	username := ctx.QueryTrim("username")
 	password := ctx.QueryTrim("password")
+	peerIP := service.RequestPeerIP(ctx)
 	json := utils.JsonResponse{}
+	policy, err := service.LoginSecurityPolicy()
+	if err != nil {
+		logger.Error("读取登录安全配置失败", err)
+		return json.CommonFailure("登录失败，请稍后重试")
+	}
 	if username == "" || password == "" {
+		block, recordErr := service.RecordLoginFailure(policy, username, peerIP, time.Now())
+		if recordErr != nil {
+			logger.Error("记录登录失败事件失败", recordErr)
+		}
+		if block != nil {
+			return json.CommonFailure("登录尝试过多，请于 " + block.BlockedUntil.Format("2006-01-02 15:04:05") + " 后重试")
+		}
 		return json.CommonFailure("用户名、密码不能为空")
+	}
+	block, err := service.ActiveLoginBlock(peerIP, username, time.Now())
+	if err != nil {
+		logger.Error("读取登录封禁状态失败", err)
+		return json.CommonFailure("登录失败，请稍后重试")
+	}
+	if block != nil {
+		_ = service.RecordLoginEvent(username, peerIP, models.LoginResultBlocked, "登录已被临时封禁")
+		return json.CommonFailure("登录尝试过多，请于 " + block.BlockedUntil.Format("2006-01-02 15:04:05") + " 后重试")
 	}
 	userModel := new(models.User)
 	if !userModel.Match(username, password) {
+		block, err = service.RecordLoginFailure(policy, username, peerIP, time.Now())
+		if err != nil {
+			logger.Error("记录登录失败事件失败", err)
+		}
+		if block != nil {
+			return json.CommonFailure("登录尝试过多，请于 " + block.BlockedUntil.Format("2006-01-02 15:04:05") + " 后重试")
+		}
 		return json.CommonFailure("用户名或密码错误")
 	}
 	loginLogModel := new(models.LoginLog)
 	loginLogModel.Username = userModel.Name
-	loginLogModel.Ip = ctx.RemoteAddr()
-	_, err := loginLogModel.Create()
+	loginLogModel.Ip = peerIP
+	_, err = loginLogModel.Create()
 	if err != nil {
 		logger.Error("记录用户登录日志失败", err)
+	}
+	if err = service.RecordLoginEvent(userModel.Name, peerIP, models.LoginResultSuccess, "登录成功"); err != nil {
+		logger.Error("记录登录安全事件失败", err)
 	}
 
 	token, err := generateToken(userModel)

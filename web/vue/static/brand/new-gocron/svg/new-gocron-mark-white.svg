@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="new-gocron mark">
+  <g transform="translate(64 64) scale(1.26) translate(-64 -64)">
+    <g stroke="#FFFFFF" fill="none" stroke-width="10" stroke-linecap="round">
+      <path d="M99.71 51.0 A38 38 0 1 1 77.0 28.29"/>
+      <path d="M64 64 L64 37"/>
+      <path d="M64 64 L78.5 78.5"/>
+    </g>
+    <polygon points="89.2,32.7 70.8,36.7 77.6,17.9" fill="#FFFFFF"/>
+    <circle cx="64" cy="64" r="5.5" fill="#FFFFFF"/>
+  </g>
+</svg>

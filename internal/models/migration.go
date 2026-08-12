@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/caoyek/New-Gocron/internal/modules/logger"
+	"github.com/go-xorm/core"
 	"github.com/go-xorm/xorm"
 )
 
@@ -43,13 +45,14 @@ func (migration *Migration) Upgrade(oldVersionId int) {
 		return
 	}
 
-	versionIds := []int{110, 122, 130, 140, 150}
+	versionIds := []int{110, 122, 130, 140, 150, 200}
 	upgradeFuncs := []func(*xorm.Session) error{
 		migration.upgradeFor110,
 		migration.upgradeFor122,
 		migration.upgradeFor130,
 		migration.upgradeFor140,
 		migration.upgradeFor150,
+		migration.upgradeFor200,
 	}
 
 	startIndex := -1
@@ -234,4 +237,203 @@ func (m *Migration) upgradeFor150(session *xorm.Session) error {
 	logger.Info("已升级到v1.5\n")
 
 	return nil
+}
+
+// upgradeFor200 expands command storage and repairs databases where deleted
+// was exported as a numeric flag instead of XORM's nullable deletion time.
+func (m *Migration) upgradeFor200(session *xorm.Session) error {
+	logger.Info("开始升级到v2.0")
+
+	switch Db.Dialect().DBType() {
+	case core.MYSQL:
+		if err := m.upgradeFor200MySQL(session); err != nil {
+			return err
+		}
+	case core.POSTGRES:
+		if err := m.upgradeFor200Postgres(session); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("v2.0数据库升级不支持当前数据库类型: %s", Db.Dialect().DBType())
+	}
+
+	logger.Info("已升级到v2.0\n")
+
+	return nil
+}
+
+// UpgradeTo200 applies the v2.0 schema changes independently of the version file.
+func (m *Migration) UpgradeTo200() error {
+	session := Db.NewSession()
+	defer session.Close()
+
+	return m.upgradeFor200(session)
+}
+
+func (m *Migration) upgradeFor200MySQL(session *xorm.Session) error {
+	taskTable := TablePrefix + "task"
+	taskLogTable := TablePrefix + "task_log"
+
+	for _, tableName := range []string{taskTable, taskLogTable} {
+		commandType, commandNullable, err := mysqlColumnDefinition(session, tableName, "command")
+		if err != nil {
+			return err
+		}
+		if commandType == "text" && !commandNullable {
+			continue
+		}
+		if _, err := session.Exec(fmt.Sprintf(
+			"UPDATE `%s` SET command = '' WHERE command IS NULL", tableName)); err != nil {
+			return err
+		}
+		if _, err := session.Exec(fmt.Sprintf(
+			"ALTER TABLE `%s` MODIFY COLUMN command TEXT NOT NULL", tableName)); err != nil {
+			return err
+		}
+	}
+
+	deletedType, err := mysqlColumnType(session, taskTable, "deleted")
+	if err != nil {
+		return err
+	}
+	if deletedType == "datetime" || deletedType == "timestamp" {
+		return nil
+	}
+
+	temporaryType, err := mysqlColumnType(session, taskTable, "deleted_v2")
+	if err != nil {
+		return err
+	}
+	if deletedType == "" && temporaryType != "" {
+		_, err = session.Exec(fmt.Sprintf(
+			"ALTER TABLE `%s` CHANGE COLUMN deleted_v2 deleted DATETIME NULL", taskTable))
+		return err
+	}
+	if deletedType == "" {
+		return errors.New("task表缺少deleted字段")
+	}
+	if temporaryType == "" {
+		if _, err = session.Exec(fmt.Sprintf(
+			"ALTER TABLE `%s` ADD COLUMN deleted_v2 DATETIME NULL", taskTable)); err != nil {
+			return err
+		}
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"UPDATE `%s` SET deleted_v2 = CASE "+
+			"WHEN deleted IS NULL OR CAST(deleted AS CHAR) IN ('', '0', '0000-00-00 00:00:00') THEN NULL "+
+			"ELSE COALESCE(created, NOW()) END", taskTable)); err != nil {
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE `%s` DROP COLUMN deleted", taskTable)); err != nil {
+		return err
+	}
+	_, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE `%s` CHANGE COLUMN deleted_v2 deleted DATETIME NULL", taskTable))
+
+	return err
+}
+
+func (m *Migration) upgradeFor200Postgres(session *xorm.Session) error {
+	taskTable := TablePrefix + "task"
+	taskLogTable := TablePrefix + "task_log"
+
+	for _, tableName := range []string{taskTable, taskLogTable} {
+		commandType, commandNullable, err := postgresColumnDefinition(session, tableName, "command")
+		if err != nil {
+			return err
+		}
+		if commandType == "text" && !commandNullable {
+			continue
+		}
+		if _, err := session.Exec(fmt.Sprintf(
+			"UPDATE %s SET command = '' WHERE command IS NULL", tableName)); err != nil {
+			return err
+		}
+		if _, err := session.Exec(fmt.Sprintf(
+			"ALTER TABLE %s ALTER COLUMN command TYPE TEXT", tableName)); err != nil {
+			return err
+		}
+		if _, err := session.Exec(fmt.Sprintf(
+			"ALTER TABLE %s ALTER COLUMN command SET NOT NULL", tableName)); err != nil {
+			return err
+		}
+	}
+
+	deletedType, err := postgresColumnType(session, taskTable, "deleted")
+	if err != nil {
+		return err
+	}
+	if strings.Contains(deletedType, "timestamp") {
+		return nil
+	}
+	temporaryType, err := postgresColumnType(session, taskTable, "deleted_v2")
+	if err != nil {
+		return err
+	}
+	if deletedType == "" && temporaryType != "" {
+		_, err = session.Exec(fmt.Sprintf(
+			"ALTER TABLE %s RENAME COLUMN deleted_v2 TO deleted", taskTable))
+		return err
+	}
+	if deletedType == "" {
+		return errors.New("task表缺少deleted字段")
+	}
+
+	if _, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE %s ADD COLUMN IF NOT EXISTS deleted_v2 TIMESTAMP NULL", taskTable)); err != nil {
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"UPDATE %s SET deleted_v2 = CASE "+
+			"WHEN deleted IS NULL OR deleted::text IN ('', '0') THEN NULL "+
+			"ELSE COALESCE(created, CURRENT_TIMESTAMP) END", taskTable)); err != nil {
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE %s DROP COLUMN deleted", taskTable)); err != nil {
+		return err
+	}
+	_, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE %s RENAME COLUMN deleted_v2 TO deleted", taskTable))
+
+	return err
+}
+
+func mysqlColumnType(session *xorm.Session, tableName, columnName string) (string, error) {
+	columnType, _, err := mysqlColumnDefinition(session, tableName, columnName)
+
+	return columnType, err
+}
+
+func mysqlColumnDefinition(session *xorm.Session, tableName, columnName string) (string, bool, error) {
+	rows, err := session.Query(
+		"SELECT DATA_TYPE, IS_NULLABLE FROM information_schema.COLUMNS "+
+			"WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+		tableName, columnName)
+	if err != nil || len(rows) == 0 {
+		return "", false, err
+	}
+
+	return strings.ToLower(string(rows[0]["DATA_TYPE"])),
+		strings.EqualFold(string(rows[0]["IS_NULLABLE"]), "YES"), nil
+}
+
+func postgresColumnType(session *xorm.Session, tableName, columnName string) (string, error) {
+	columnType, _, err := postgresColumnDefinition(session, tableName, columnName)
+
+	return columnType, err
+}
+
+func postgresColumnDefinition(session *xorm.Session, tableName, columnName string) (string, bool, error) {
+	rows, err := session.Query(
+		"SELECT data_type, is_nullable FROM information_schema.columns "+
+			"WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
+		tableName, columnName)
+	if err != nil || len(rows) == 0 {
+		return "", false, err
+	}
+
+	return strings.ToLower(string(rows[0]["data_type"])),
+		strings.EqualFold(string(rows[0]["is_nullable"]), "YES"), nil
 }

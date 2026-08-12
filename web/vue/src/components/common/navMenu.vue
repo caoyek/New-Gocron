@@ -1,8 +1,8 @@
 <template>
   <aside class="app-sidebar" v-cloak>
     <div class="sidebar-brand">
-      <span class="sidebar-brand__icon"><i class="el-icon-time"></i></span>
-      <!-- <span class="sidebar-brand__text">任务调度平台</span> -->
+      <img class="sidebar-brand__icon" :src="brandIcon" alt="New-Gocron">
+      <span class="sidebar-brand__text">New-Gocron</span>
     </div>
 
     <nav class="sidebar-nav" aria-label="主导航">
@@ -59,6 +59,7 @@
       </section>
     </nav>
 
+    <div class="sidebar-version">v2.0</div>
     <div class="sidebar-account">
       <el-dropdown trigger="click" placement="top-start" @command="handleUserCommand">
         <button class="sidebar-account__button" type="button" aria-label="账号菜单">
@@ -76,11 +77,14 @@
 </template>
 
 <script>
+import brandIcon from '../../assets/brand/new-gocron/new-gocron-icon.svg'
 
 export default {
   name: 'app-nav-menu',
   data () {
-    return {}
+    return {
+      brandIcon
+    }
   },
   computed: {
     isAdmin () {
@@ -158,27 +162,23 @@ export default {
   padding: 0;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 10px;
   flex: 0 0 82px;
 }
 
 .sidebar-brand__icon {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 40px;
-  border-radius: 7px;
-  background: #2783de;
-  color: #ffffff;
-  font-size: 21px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  object-fit: contain;
 }
 
 .sidebar-brand__text {
   overflow: hidden;
-  font-size: 17px;
+  color: #f2f3f4;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 38px;
   white-space: nowrap;
 }
 
@@ -237,6 +237,15 @@ export default {
   padding: 14px 12px;
   flex: 0 0 auto;
   border-top: 1px solid #35373a;
+}
+
+.sidebar-version {
+  padding: 0 12px 8px;
+  flex: 0 0 auto;
+  color: #6f7378;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 
 .sidebar-account /deep/ .el-dropdown {

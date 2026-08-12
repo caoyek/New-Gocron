@@ -1,0 +1,26 @@
+{
+  "name": "New-Gocron",
+  "short_name": "New-Gocron",
+  "description": "定时任务管理系统",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2172c8",
+  "icons": [
+    {
+      "src": "brand/new-gocron/png/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "brand/new-gocron/png/icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "brand/new-gocron/png/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

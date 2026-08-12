@@ -1,187 +1,253 @@
-# New-Gocron - 定时任务管理系统
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg)](https://github.com/caoyek/New-Gocron)
-[![License](https://img.shields.io/github/license/caoyek/New-Gocron.svg)](https://github.com/caoyek/New-Gocron/blob/main/LICENSE)
+# New-Gocron
 
-> New-Gocron 2.0 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 项目二次开发，保留原项目的开源许可证和版权声明。
+New-Gocron 是一个定时任务管理系统，当前版本为 2.0。项目提供 Web 管理端和任务节点，可集中管理 Shell、HTTP 等定时任务。
 
-# 项目简介
-使用Go语言开发的轻量级定时任务集中调度和管理系统，用于替代Linux-crontab。原项目文档可查看 [gocron Wiki](https://github.com/ouqiang/gocron/wiki)。
+## New-Gocron 2.0 主要改动
 
-原有的延时任务拆分为独立项目[延迟队列](https://github.com/ouqiang/delay-queue)  
+### 数据看板
 
-## 功能特性
-* Web界面管理定时任务
-* crontab时间表达式, 精确到秒
-* 任务执行失败可重试
-* 任务执行超时, 强制结束
-* 任务依赖配置, A任务完成后再执行B任务
-* 账户权限控制
-* 任务类型
-    * shell任务
-    > 在任务节点上执行shell命令, 支持任务同时在多个节点上运行
-    * HTTP任务
-    > 访问指定的URL地址, 由调度器直接执行, 不依赖任务节点
-* 查看任务执行结果日志
-* 任务执行结果通知, 支持邮件、Slack、Webhook
+- 展示启用任务数、停用任务数、今日执行成功数和今日执行失败数。
+- 按 1-24 时展示今日任务执行趋势。
+- 展示即将执行的任务和最近执行异常，并区分 Shell、HTTP 执行方式。
 
-### 截图
-![流程图](assets/screenshot/scheduler.png)
-![任务](assets/screenshot/task.png)
-![Slack](assets/screenshot/notification.png)
-    
-### 支持平台
-> Windows、Linux、Mac OS
+### 管理界面
 
-### 环境要求
->  MySQL
+- 使用 New-Gocron 品牌名称、图标、浏览器图标和站点清单。
+- 重构登录页、左侧导航以及任务、日志、节点、用户和推送设置页面。
+- 统一紧凑型页面布局，优化表格列宽、滚动区域、筛选栏和操作按钮。
+- 新增、编辑、查看任务统一使用弹窗界面。
+- 命令及执行结果使用深色代码框展示，长命令支持悬浮预览。
 
+### 任务管理
 
-## 下载
-[releases](https://github.com/caoyek/New-Gocron/releases)
+- 任务 ID 和任务名称合并为一个模糊搜索条件。
+- 标签、执行方式、任务节点和状态支持选择后自动查询。
+- 标签可选择已有数据，也可在编辑任务时直接创建。
+- 子任务改为从现有任务中多选，并在列表中显示对应主任务。
+- 任务列表增加上次执行结果、执行时间和耗时。
+- 执行、编辑、保存等操作完成后自动刷新列表数据。
+- Cron 表达式提供每天、每周和每月快捷设置。
 
-[原项目版本升级说明](https://github.com/ouqiang/gocron/wiki/版本升级)
+### 后端与数据库
 
-## 安装
+- 移除任务命令原有的 256 字符存储限制。
+- 修复异常数据库中任务删除字段类型不正确导致的删除失败。
+- 增加 New-Gocron 2.0 数据库自动迁移和独立升级命令。
+- 增加数据看板统计接口和任务列表最近执行信息。
 
-###  二进制安装
-1. 解压压缩包   
-2. `cd 解压目录`   
-3. 启动        
-* 调度器启动        
-  * Windows: `gocron.exe web`   
-  * Linux、Mac OS:  `./gocron web`
-* 任务节点启动, 默认监听0.0.0.0:5921
-  * Windows:  `gocron-node.exe`
-  * Linux、Mac OS:  `./gocron-node`
-4. 浏览器访问 http://localhost:5920
+## 二进制部署
 
-### 源码安装
+从 [Releases](https://github.com/caoyek/New-Gocron/releases) 下载对应系统的程序包并解压。运行目录至少需要包含以下内容：
 
-- 安装Go 1.11+
-- `git clone https://github.com/caoyek/New-Gocron.git`
-- `cd New-Gocron`
-- `export GO111MODULE=on` 
-- 编译 `make`
-- 启动
-    * gocron `./bin/gocron web`
-    * gocron-node `./bin/gocron-node`
-
-
-### docker
-
-```shell
-docker build -t new-gocron:2.0 .
-docker run --name new-gocron --link mysql:db -p 5920:5920 -d new-gocron:2.0
+```text
+gocron
+gocron-node
+conf/
 ```
 
-配置: /app/conf/app.ini
+Windows 程序文件名为 `gocron.exe` 和 `gocron-node.exe`。
 
-日志: /app/log/cron.log
+### 启动 Web 服务
 
-镜像不包含gocron-node, gocron-node需要和具体业务一起构建
+Linux：
 
+```bash
+chmod +x gocron
+./gocron web
+```
 
-### 开发
+Windows：
 
-1. 安装Go1.9+, Node.js, Yarn
-2. 安装前端依赖 `make install-vue`
-3. 启动gocron, gocron-node `make run`
-4. 启动node server `make run-vue`, 访问地址 http://localhost:8080
+```powershell
+.\gocron.exe web
+```
 
-访问http://localhost:8080, API请求会转发给gocron
+Web 服务默认监听 `0.0.0.0:5920`。可按需指定地址、端口和运行环境：
 
-`make` 编译
+```bash
+./gocron web --host 0.0.0.0 --port 5920 --env prod
+```
 
-`make run` 编译并运行
+首次部署时访问 `http://服务器IP:5920`，根据安装页面完成数据库配置。安装后的配置保存在 `conf/app.ini`。
 
-`make package` 打包 
-> 生成当前系统的压缩包 gocron-v2.0-darwin-amd64.tar.gz gocron-node-v2.0-darwin-amd64.tar.gz
+### 启动任务节点
 
-`make package-all` 生成Windows、Linux、Mac的压缩包
+Shell 任务需要至少一个可用的任务节点。请在实际执行命令的服务器上启动 `gocron-node`。
 
-### 命令
+Linux：
 
-* gocron
-    * -v 查看版本
+```bash
+chmod +x gocron-node
+./gocron-node
+```
 
-* gocron web
-    * --host 默认0.0.0.0
-    * -p 端口, 指定端口, 默认5920
-    * -e 指定运行环境, dev|test|prod, dev模式下可查看更多日志信息, 默认prod
-    * -h 查看帮助
-* gocron-node
-    * -allow-root *nix平台允许以root用户运行
-    * -s ip:port 监听地址  
-    * -enable-tls 开启TLS    
-    * -ca-file   CA证书文件   
-    * -cert-file 证书文件  
-    * -key-file  私钥文件
-    * -h 查看帮助
-    * -v 查看版本
+Windows：
 
-## To Do List
-- [x] 版本升级
-- [x] 批量开启、关闭、删除任务
-- [x] 调度器与任务节点通信支持https
-- [x] 任务分组
-- [x] 多用户
-- [x] 权限控制
+```powershell
+.\gocron-node.exe
+```
 
-## 程序使用的组件
-* Web框架 [Macaron](http://go-macaron.com/)
-* 定时任务调度 [Cron](https://github.com/robfig/cron)
-* ORM [Xorm](https://github.com/go-xorm/xorm)
-* UI框架 [Element UI](https://github.com/ElemeFE/element)
-* 依赖管理 [Govendor](https://github.com/kardianos/govendor)
-* RPC框架 [gRPC](https://github.com/grpc/grpc)
+任务节点默认监听 `0.0.0.0:5921`，指定监听地址可使用：
 
-## 反馈
-提交 [Issue](https://github.com/caoyek/New-Gocron/issues/new)
+```bash
+./gocron-node -s 0.0.0.0:5921
+```
 
-## ChangeLog
+启动后在 New-Gocron 的“任务节点”页面添加节点地址。
 
-v2.0
---------
-* 新增数据看板和任务执行统计
-* 重构任务、日志、节点、用户及推送设置页面
-* 优化任务搜索、编辑、查看和子任务管理流程
-* 扩展任务命令及数据库字段限制
+## 从旧版本升级
 
-v1.5
---------
-* 前端使用Vue+ElementUI重构
-* 任务通知
-    * 新增WebHook通知
-    * 自定义通知模板
-    * 匹配任务执行结果关键字发送通知
-* 任务列表页显示任务下次执行时间
+New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 
-v1.4
---------
-* HTTP任务支持POST请求
-* 后台手动停止运行中的shell任务
-* 任务执行失败重试间隔时间支持用户自定义
-* 修复API接口调用报403错误
+| 表 | 字段 | 原类型或异常类型 | New-Gocron 2.0 类型 |
+| --- | --- | --- | --- |
+| `{prefix}task` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
+| `{prefix}task_log` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
+| `{prefix}task` | `deleted` | 部分异常数据库为数值类型 | MySQL `DATETIME NULL` / PostgreSQL `TIMESTAMP NULL` |
 
-v1.3
---------
-* 支持多用户登录
-* 增加用户权限控制
+其中 `{prefix}` 是 `conf/app.ini` 中 `db.prefix` 配置的表前缀。前缀会直接与表名拼接，例如 `db.prefix = gocron` 对应的任务表为 `gocrontask`。
 
+推荐按以下顺序升级生产环境：
 
-v1.2.2
---------
-* 用户登录页增加图形验证码
-* 支持从旧版本升级
-* 任务批量开启、关闭、删除
-* 调度器与任务节点支持HTTPS双向认证
-* 修复任务列表页总记录数显示错误
+1. 备份当前数据库和 `conf/app.ini`。
+2. 停止旧版 Web 服务，避免升级过程中继续写入数据。
+3. 解压 New-Gocron 2.0，并保留原有的 `conf/app.ini`、`conf/install.lock` 和 `conf/.version`。
+4. 在 New-Gocron 程序目录执行数据库升级命令。
+5. 数据库升级成功后再启动 Web 服务和任务节点。
 
-v1.1
---------
+Linux：
 
-* 任务可同时在多个节点上运行
-* *nix平台默认禁止以root用户运行任务节点
-* 子任务命令中增加预定义占位符, 子任务可根据主任务运行结果执行相应操作
-* 删除守护进程模块
-* Web访问日志输出到终端
+```bash
+./gocron db-upgrade
+./gocron web
+```
+
+Windows：
+
+```powershell
+.\gocron.exe db-upgrade
+.\gocron.exe web
+```
+
+`db-upgrade` 会读取程序目录中的 `conf/app.ini`，只执行 New-Gocron 2.0 所需的字段调整，不启动 Web 服务或任务调度。该命令可以重复执行。
+
+正常从旧版本首次启动 New-Gocron 2.0 时也会进入版本迁移流程，但生产环境建议先单独执行 `db-upgrade`，确认数据库升级成功后再启动服务。
+
+> 不要在未备份数据库的情况下直接升级，也不要让旧版 Web 服务长期连接已经完成 2.0 字段调整的数据库。
+
+## 源码开发
+
+### 环境准备
+
+- Go（项目使用 Go Modules）
+- Node.js 16.20.2（仓库提供 `.node-version`，可使用 fnm 切换）
+- npm 或 Yarn
+- MySQL 或 PostgreSQL
+
+克隆项目：
+
+```bash
+git clone https://github.com/caoyek/New-Gocron.git
+cd New-Gocron
+```
+
+使用 fnm 准备前端环境：
+
+```bash
+fnm install
+fnm use
+```
+
+### 后端和任务节点
+
+编译两个程序：
+
+```bash
+make
+```
+
+编译结果位于 `bin/`：
+
+```text
+bin/gocron
+bin/gocron-node
+```
+
+编译并以开发模式启动后端和任务节点：
+
+```bash
+make run
+```
+
+也可以分别启动：
+
+```bash
+./bin/gocron web --env dev
+./bin/gocron-node
+```
+
+### 前端
+
+安装依赖并启动开发服务器：
+
+```bash
+cd web/vue
+npm install
+npm run dev
+```
+
+前端开发地址为 `http://localhost:8080`，`/api` 请求会代理到本地后端 `http://localhost:5920`。
+
+也可以在项目根目录使用 Makefile：
+
+```bash
+make install-vue
+make run-vue
+```
+
+### 测试与打包
+
+运行 Go 测试：
+
+```bash
+go test ./...
+```
+
+生成当前系统的发布包：
+
+```bash
+make package
+```
+
+生成 Linux、Windows 和 macOS 发布包：
+
+```bash
+make package-all
+```
+
+打包脚本依赖 Bash 及对应的压缩工具。跨平台打包前请确认本机 Go 交叉编译环境可用。
+
+## 常用端口
+
+| 服务 | 默认地址 | 用途 |
+| --- | --- | --- |
+| Web 服务 | `0.0.0.0:5920` | 管理页面和 API |
+| 任务节点 | `0.0.0.0:5921` | 接收并执行 Shell 任务 |
+| 前端开发服务 | `localhost:8080` | Vue 开发与热更新 |
+
+## 配置与数据安全
+
+- 主配置文件为 `conf/app.ini`，不要将生产数据库密码提交到 Git。
+- 升级或迁移前必须备份数据库和配置文件。
+- 从线上数据库复制数据到开发环境后，应先停用所有任务，避免开发环境误执行线上任务。
+- 生产环境建议使用进程管理工具托管 `gocron web` 和 `gocron-node`，并限制管理端及任务节点端口的访问范围。
+
+## 问题反馈
+
+请在 [New-Gocron Issues](https://github.com/caoyek/New-Gocron/issues) 提交问题，并附上版本、操作系统、数据库类型和相关日志。
+
+## 项目来源与许可证
+
+New-Gocron 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 二次开发。原项目的功能说明、架构资料和历史版本记录请查看原项目仓库，本项目不再重复收录。
+
+本项目继续保留原项目的开源许可证和版权声明，具体内容见 [LICENSE](LICENSE)。

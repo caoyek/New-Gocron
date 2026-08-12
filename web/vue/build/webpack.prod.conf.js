@@ -64,6 +64,8 @@ const webpackConfig = merge(baseWebpackConfig, {
       filename: config.build.index,
       template: 'index.html',
       inject: true,
+      brandBase: 'public/static/brand/new-gocron/',
+      manifestPath: 'public/static/site.webmanifest',
       minify: {
         removeComments: true,
         collapseWhitespace: true,

@@ -43,7 +43,7 @@ func main() {
 
 // getCommands
 func getCommands() []cli.Command {
-	command := cli.Command{
+	webCommand := cli.Command{
 		Name:   "web",
 		Usage:  "run web server",
 		Action: runWeb,
@@ -65,8 +65,37 @@ func getCommands() []cli.Command {
 			},
 		},
 	}
+	dbUpgradeCommand := cli.Command{
+		Name:   "db-upgrade",
+		Usage:  "apply New-Gocron 2.0 database schema changes",
+		Action: runDbUpgrade,
+	}
 
-	return []cli.Command{command}
+	return []cli.Command{webCommand, dbUpgradeCommand}
+}
+
+func runDbUpgrade(ctx *cli.Context) error {
+	app.InitEnv(AppVersion)
+	if !app.Installed {
+		return cli.NewExitError("系统尚未安装", 1)
+	}
+
+	config, err := setting.Read(app.AppConfig)
+	if err != nil {
+		return err
+	}
+	app.Setting = config
+	models.Db = models.CreateDb()
+	defer models.Db.Close()
+
+	migration := new(models.Migration)
+	if err = migration.UpgradeTo200(); err != nil {
+		return err
+	}
+
+	logger.Info("New-Gocron 2.0数据库字段升级完成")
+
+	return nil
 }
 
 func runWeb(ctx *cli.Context) {

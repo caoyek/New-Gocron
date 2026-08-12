@@ -3,6 +3,10 @@
     <main class="login-main">
       <section class="login-panel">
         <header class="login-header">
+          <div class="login-brand">
+            <img class="login-brand__icon" :src="brandIcon" alt="">
+            <span class="login-brand__name">New-Gocron</span>
+          </div>
           <h1>账号登录</h1>
         </header>
 
@@ -52,11 +56,13 @@
 
 <script>
 import userService from '../../api/user'
+import brandIcon from '../../assets/brand/new-gocron/new-gocron-icon.svg'
 
 export default {
   name: 'login',
   data () {
     return {
+      brandIcon,
       form: {
         username: '',
         password: ''
@@ -140,6 +146,29 @@ export default {
 
 .login-header {
   margin-bottom: 22px;
+}
+
+.login-brand {
+  display: flex;
+  margin-bottom: 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+}
+
+.login-brand__icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  object-fit: contain;
+}
+
+.login-brand__name {
+  color: #2c2c2b;
+  font-size: 25px;
+  font-weight: 600;
+  line-height: 48px;
+  white-space: nowrap;
 }
 
 .login-header h1 {

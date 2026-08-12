@@ -68,6 +68,7 @@
       </div>
     </el-form>
     <el-pagination
+      class="task-pagination"
       background
       layout="prev, pager, next, sizes, total"
       :total="taskTotal"
@@ -625,6 +626,10 @@ export default {
     overflow-y: auto;
   }
 
+  .task-pagination {
+    margin-bottom: 10px;
+  }
+
   .task-list-main /deep/ .task-expand-column {
     width: 1px;
     padding: 0 !important;
@@ -662,9 +667,14 @@ export default {
   }
 
   .task-list-main /deep/ .has-expanded-task .el-table__fixed-right .el-table__expanded-cell {
-    visibility: hidden;
     border: 0;
+    border-bottom: 1px solid #ebeef5;
     background: transparent !important;
+    pointer-events: none;
+  }
+
+  .task-list-main /deep/ .has-expanded-task .el-table__fixed-right .el-table__expanded-cell > * {
+    visibility: hidden;
   }
 
   .task-detail-panel {

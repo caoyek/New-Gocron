@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 96" width="380" height="96" role="img" aria-label="new-gocron">
+  <defs>
+    <linearGradient id="ngcBg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4E97E6"/>
+      <stop offset="1" stop-color="#2172C8"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(8 8) scale(0.625)">
+    <rect width="128" height="128" rx="30" fill="url(#ngcBg2)"/>
+    <g stroke="#FFFFFF" fill="none" stroke-width="10" stroke-linecap="round">
+      <path d="M99.71 51.0 A38 38 0 1 1 77.0 28.29"/>
+      <path d="M64 64 L64 37"/>
+      <path d="M64 64 L78.5 78.5"/>
+    </g>
+    <polygon points="89.2,32.7 70.8,36.7 77.6,17.9" fill="#FFFFFF"/>
+    <circle cx="64" cy="64" r="5.5" fill="#FFFFFF"/>
+  </g>
+  <text x="104" y="60" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="38" font-weight="600" letter-spacing="-0.5">
+    <tspan fill="#7D7A75">new-</tspan><tspan fill="#2C2C2B">gocron</tspan>
+  </text>
+  <text x="105" y="82" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" letter-spacing="2.6" fill="#7D7A75">SCHEDULED TASK MANAGER</text>
+</svg>

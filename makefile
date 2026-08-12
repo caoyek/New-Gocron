@@ -1,4 +1,6 @@
 GO111MODULE=on
+YARN ?= yarn
+GO ?= go
 
 .PHONY: build
 build: gocron node
@@ -20,15 +22,17 @@ kill:
 
 .PHONY: gocron
 gocron:
-	go build $(RACE) -o bin/gocron ./cmd/gocron
+	mkdir -p bin
+	$(GO) build $(RACE) -o bin/gocron ./cmd/gocron
 
 .PHONY: node
 node:
-	go build $(RACE) -o bin/gocron-node ./cmd/node
+	mkdir -p bin
+	$(GO) build $(RACE) -o bin/gocron-node ./cmd/node
 
 .PHONY: test
 test:
-	go test $(RACE) ./...
+	$(GO) test $(RACE) ./...
 
 .PHONY: test-race
 test-race: enable-race test
@@ -47,26 +51,29 @@ package-all: build-vue statik
 
 .PHONY: build-vue
 build-vue:
-	cd web/vue && yarn run build
+	cd web/vue && $(YARN) run build
+	mkdir -p web/public
 	cp -r web/vue/dist/* web/public/
 
 .PHONY: install-vue
 install-vue:
-	cd web/vue && yarn install
+	cd web/vue && $(YARN) install --frozen-lockfile
 
 .PHONY: run-vue
 run-vue:
-	cd web/vue && yarn run dev
+	cd web/vue && $(YARN) run dev
 
 .PHONY: statik
 statik:
-	go get github.com/rakyll/statik
-	go generate ./...
+	$(GO) run github.com/rakyll/statik -src=web/public -dest=internal -f
 
 .PHONY: lint
+lint:
 	golangci-lint run
+	cd web/vue && $(YARN) run lint
 
 .PHONY: clean
 clean:
-	rm bin/gocron
-	rm bin/gocron-node
+	rm -f bin/gocron bin/gocron.exe
+	rm -f bin/gocron-node bin/gocron-node.exe
+	rm -rf gocron-package gocron-node-package

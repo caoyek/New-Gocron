@@ -63,7 +63,14 @@
       </section>
     </nav>
 
-    <div class="sidebar-version">v2.0</div>
+    <div class="sidebar-version">
+      <span>v2.0.1</span>
+      <a
+        class="sidebar-version__link"
+        href="https://github.com/caoyek/New-Gocron"
+        target="_blank"
+        rel="noopener noreferrer">GitHub</a>
+    </div>
     <div class="sidebar-account">
       <el-dropdown trigger="click" placement="top-start" @command="handleUserCommand">
         <button class="sidebar-account__button" type="button" aria-label="账号菜单">
@@ -247,12 +254,26 @@ export default {
 }
 
 .sidebar-version {
+  display: flex;
   padding: 0 12px 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   flex: 0 0 auto;
   color: #6f7378;
   font-size: 11px;
   line-height: 18px;
-  text-align: center;
+}
+
+.sidebar-version__link {
+  color: #92969b;
+  text-decoration: none;
+}
+
+.sidebar-version__link:hover,
+.sidebar-version__link:focus {
+  color: #d8dadd;
+  text-decoration: underline;
 }
 
 .sidebar-account /deep/ .el-dropdown {

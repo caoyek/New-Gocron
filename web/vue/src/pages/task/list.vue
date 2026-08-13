@@ -358,6 +358,8 @@ export default {
       editingTaskId: null,
       autoRefreshTimer: null,
       delayedRefreshTimer: null,
+      searchInProgress: false,
+      autoRefreshPaused: false,
       searchRequestId: 0,
       lastSearchParams: null,
       expandedTaskIds: [],
@@ -486,7 +488,7 @@ export default {
       }, 30000)
     },
     autoRefresh () {
-      if (document.hidden || this.editorVisible || this.expandedTaskIds.length > 0) {
+      if (document.hidden || this.editorVisible || this.expandedTaskIds.length > 0 || this.searchInProgress || this.autoRefreshPaused) {
         return
       }
       this.search(null, this.lastSearchParams)
@@ -593,6 +595,7 @@ export default {
       if (!params) {
         this.lastSearchParams = searchParams
       }
+      this.searchInProgress = true
       taskService.list(searchParams, (tasks, hosts) => {
         if (requestId !== this.searchRequestId) {
           return
@@ -602,6 +605,11 @@ export default {
         this.hosts = hosts
         if (callback) {
           callback()
+        }
+      }, (success) => {
+        if (requestId === this.searchRequestId) {
+          this.searchInProgress = false
+          this.autoRefreshPaused = !success
         }
       })
     },

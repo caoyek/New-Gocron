@@ -2,7 +2,6 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -223,27 +222,42 @@ func (task *Task) setLastRunsForTasks(tasks []Task) ([]Task, error) {
 		taskIds[i] = item.Id
 	}
 
-	logs := make([]TaskLog, 0)
-	latestLogCondition := fmt.Sprintf(
-		"tl.id = (SELECT MAX(tl2.id) FROM %s tl2 WHERE tl2.task_id = tl.task_id)",
-		taskLogTableName(),
-	)
-	err := Db.Table(new(TaskLog)).Alias("tl").
-		In("tl.task_id", taskIds...).
-		Where(latestLogCondition).
-		Cols("tl.task_id", "tl.status", "tl.start_time", "tl.end_time").
+	type latestTaskLog struct {
+		Id int64 `xorm:"id"`
+	}
+	latestLogs := make([]latestTaskLog, 0)
+	err := Db.Table(new(TaskLog)).
+		Select("MAX(id) AS id").
+		In("task_id", taskIds...).
+		GroupBy("task_id").
+		Find(&latestLogs)
+	if err != nil {
+		return nil, err
+	}
+	if len(latestLogs) == 0 {
+		return tasks, nil
+	}
+
+	logIds := make([]interface{}, len(latestLogs))
+	for i, log := range latestLogs {
+		logIds[i] = log.Id
+	}
+	logs := make([]TaskLog, 0, len(logIds))
+	err = Db.Table(new(TaskLog)).
+		In("id", logIds...).
+		Cols("task_id", "status", "start_time", "end_time").
 		Find(&logs)
 	if err != nil {
 		return nil, err
 	}
 
-	latestLogs := make(map[int]TaskLog, len(logs))
+	lastRuns := make(map[int]TaskLog, len(logs))
 	for _, log := range logs {
-		latestLogs[log.TaskId] = log
+		lastRuns[log.TaskId] = log
 	}
 
 	for i := range tasks {
-		log, ok := latestLogs[tasks[i].Id]
+		log, ok := lastRuns[tasks[i].Id]
 		if !ok {
 			continue
 		}

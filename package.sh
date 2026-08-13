@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Build gocron and gocron-node release archives.
-# Example: ./package.sh -a amd64 -p linux -v v2.0.0
+# Example: ./package.sh -a amd64 -p linux -v v2.0.1
 
 set -o errexit
 set -o nounset
@@ -65,7 +65,7 @@ resolve_version() {
     fi
     VERSION=$(git describe --tags --abbrev=0 2>/dev/null || true)
     if [[ -z "${VERSION}" ]]; then
-        VERSION='v2.0.0'
+        VERSION='v2.0.1'
     fi
 }
 
@@ -159,7 +159,7 @@ while getopts 'p:a:v:' option; do
             VERSION="${OPTARG}"
             ;;
         *)
-            print_message_and_exit 'Usage: package.sh [-p "linux windows"] [-a "386 amd64"] [-v v2.0.0]'
+            print_message_and_exit 'Usage: package.sh [-p "linux windows"] [-a "386 amd64"] [-v v2.0.1]'
             ;;
     esac
 done

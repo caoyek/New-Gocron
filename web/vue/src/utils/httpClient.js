@@ -84,7 +84,7 @@ export default {
     handle(promise, next)
   },
 
-  batchGet (uriGroup, next) {
+  batchGet (uriGroup, next, complete) {
     const requests = []
     for (let item of uriGroup) {
       let params = {}
@@ -98,12 +98,20 @@ export default {
       const result = []
       for (let item of res) {
         if (!checkResponseCode(item.data.code, item.data.message)) {
-          return
+          return false
         }
         result.push(item.data.data)
       }
       next(...result)
-    })).catch((error) => failureCallback(error))
+      return true
+    })).catch((error) => {
+      failureCallback(error)
+      return false
+    }).then((success) => {
+      if (complete) {
+        complete(success)
+      }
+    })
   },
 
   post (uri, data, next) {

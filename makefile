@@ -52,6 +52,7 @@ package-all: build-vue statik
 .PHONY: build-vue
 build-vue:
 	cd web/vue && $(YARN) run build
+	rm -rf web/public
 	mkdir -p web/public
 	cp -r web/vue/dist/* web/public/
 

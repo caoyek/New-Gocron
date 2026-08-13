@@ -32,6 +32,49 @@ New-Gocron 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 二次开�
 
 ## 二进制部署
 
+### Linux 一键安装
+
+以下命令会从 GitHub 获取最新发行版，校验 SHA-256，安装到 `/usr/local/gocron`，创建 systemd 服务并启动 Web 管理端：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash
+```
+
+同时安装任务节点：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --with-node
+```
+
+### 更新现有安装
+
+仅更新 Web 主程序：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --upgrade --without-node
+```
+
+同时更新 Web 主程序和任务节点：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --upgrade --with-node
+```
+
+更新默认针对 `/usr/local/gocron`，并保留 `conf/`、`log/` 和 `backups/`。更新前的程序和配置会备份到 `backups/` 目录。
+
+支持从 gocron 1.5.3 升级到 New-Gocron 2.0.x：脚本会保留旧配置，并在首次启动时执行数据库迁移。使用标准 `gocron.service` 的旧版会被自动停止和接管；如果旧版由 Supervisor、Docker、宝塔或 `nohup` 管理，请先停止旧进程再运行更新命令。
+
+指定版本或自定义目录可使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | \
+  sudo bash -s -- --version v2.0.2 --install-dir /data/new-gocron
+```
+
+默认安装目录为 `/usr/local/gocron`，安装过程记录在 `/var/log/new-gocron-install.log`。首次启动后访问 `http://服务器IP:5920` 完成数据库和管理员配置。
+
+### 手动安装
+
 从 [Releases](https://github.com/caoyek/New-Gocron/releases) 下载对应系统的程序包并解压。运行目录至少需要包含以下内容：
 
 ```text

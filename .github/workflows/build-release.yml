@@ -22,6 +22,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify installer script
+        run: |
+          bash -n scripts/install.sh
+          bash scripts/install.sh --help >/dev/null
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:

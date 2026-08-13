@@ -38,7 +38,7 @@ jobs:
       - name: Install frontend dependencies
         run: |
           npm install --global yarn@1.22.22
-          yarn --cwd web/vue install --frozen-lockfile
+          yarn --cwd web/vue install --frozen-lockfile --ignore-engines
 
       - name: Verify tagged version
         if: ${{ startsWith(github.ref, 'refs/tags/v') }}

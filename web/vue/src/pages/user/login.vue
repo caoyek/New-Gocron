@@ -7,7 +7,6 @@
             <img class="login-brand__icon" :src="brandIcon" alt="">
             <span class="login-brand__name">New-Gocron</span>
           </div>
-          <h1>账号登录</h1>
         </header>
 
         <el-form
@@ -104,7 +103,7 @@ export default {
           username: data.username,
           isAdmin: data.is_admin
         })
-        this.$router.push(this.$route.query.redirect || '/')
+        this.$router.push(this.$route.query.redirect || '/dashboard')
       })
     }
   }
@@ -146,11 +145,12 @@ export default {
 
 .login-header {
   margin-bottom: 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ebecef;
 }
 
 .login-brand {
   display: flex;
-  margin-bottom: 20px;
   align-items: center;
   justify-content: center;
   gap: 13px;
@@ -169,24 +169,6 @@ export default {
   font-weight: 600;
   line-height: 48px;
   white-space: nowrap;
-}
-
-.login-header h1 {
-  margin: 0;
-  color: #2c2c2b;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 28px;
-}
-
-.login-header::after {
-  display: block;
-  width: 28px;
-  height: 2px;
-  margin-top: 10px;
-  background: #2783de;
-  content: '';
 }
 
 .login-form /deep/ .el-form-item {

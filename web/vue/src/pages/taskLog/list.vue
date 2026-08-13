@@ -4,11 +4,29 @@
       <el-form class="task-log-filter-form">
         <div class="task-log-filter-grid">
         <el-form-item>
+          <el-date-picker
+            v-model="searchParams.start_time"
+            type="datetime"
+            clearable
+            value-format="yyyy-MM-dd HH:mm:ss"
+            placeholder="开始时间">
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item>
+          <el-date-picker
+            v-model="searchParams.end_time"
+            type="datetime"
+            clearable
+            value-format="yyyy-MM-dd HH:mm:ss"
+            placeholder="结束时间">
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item>
           <el-input
             v-model.trim="searchParams.keyword"
             clearable
             placeholder="搜索任务..."
-            @keyup.enter.native="search()">
+            @keyup.enter.native="applyFilters">
           </el-input>
         </el-form-item>
         <el-form-item>
@@ -32,7 +50,7 @@
           </el-select>
         </el-form-item>
         <div class="task-log-filter-actions">
-          <el-button size="small" type="primary" icon="el-icon-search" @click="search()">搜索</el-button>
+          <el-button size="small" type="primary" icon="el-icon-search" @click="applyFilters">搜索</el-button>
           <el-button
             v-if="this.$store.getters.user.isAdmin"
             size="small"
@@ -207,7 +225,9 @@ export default {
         page: 1,
         keyword: '',
         protocol: '',
-        status: ''
+        status: '',
+        start_time: '',
+        end_time: ''
       },
       isAdmin: this.$store.getters.user.isAdmin,
       dialogVisible: false,
@@ -266,7 +286,16 @@ export default {
       this.searchParams.page_size = pageSize
       this.search()
     },
+    applyFilters () {
+      this.searchParams.page = 1
+      this.search()
+    },
     search (callback = null) {
+      if (this.searchParams.start_time && this.searchParams.end_time &&
+        this.searchParams.start_time > this.searchParams.end_time) {
+        this.$message.warning('开始时间不能晚于结束时间')
+        return
+      }
       taskLogService.list(this.searchParams, (data) => {
         this.logs = data.data
         this.logTotal = data.total
@@ -307,8 +336,8 @@ export default {
 
   .task-log-filter-grid {
     display: grid;
-    grid-template-columns: 220px 180px 180px auto;
-    gap: 12px;
+    grid-template-columns: 210px 210px 180px 120px 90px auto;
+    gap: 8px;
     align-items: center;
   }
 
@@ -317,7 +346,8 @@ export default {
   }
 
   .task-log-filter-grid /deep/ .el-input,
-  .task-log-filter-grid /deep/ .el-select {
+  .task-log-filter-grid /deep/ .el-select,
+  .task-log-filter-grid /deep/ .el-date-editor {
     width: 100%;
   }
 

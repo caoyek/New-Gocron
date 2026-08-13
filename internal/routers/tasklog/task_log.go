@@ -88,6 +88,8 @@ func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	params["TaskId"] = ctx.QueryInt("task_id")
 	params["Keyword"] = ctx.QueryTrim("keyword")
 	params["Protocol"] = ctx.QueryInt("protocol")
+	params["StartTime"] = ctx.QueryTrim("start_time")
+	params["EndTime"] = ctx.QueryTrim("end_time")
 	status := ctx.QueryInt("status")
 	if status >= 0 {
 		status -= 1

@@ -161,8 +161,8 @@ export default {
 
 .host-filter-grid {
   display: grid;
-  grid-template-columns: 260px auto;
-  gap: 12px;
+  grid-template-columns: 180px auto;
+  gap: 8px;
   align-items: center;
 }
 

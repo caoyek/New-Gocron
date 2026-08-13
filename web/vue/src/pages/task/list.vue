@@ -27,22 +27,22 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-select v-model.trim="searchParams.protocol" clearable placeholder="执行方式" @change="applySearch()">
-            <el-option
-              v-for="item in protocolList"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value">
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item>
           <el-select v-model.trim="searchParams.host_id" clearable placeholder="任务节点" @change="applySearch()">
             <el-option
               v-for="item in hosts"
               :key="item.id"
               :label="item.alias + ' - ' + item.name + ':' + item.port "
               :value="item.id">
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model.trim="searchParams.protocol" clearable placeholder="执行方式" @change="applySearch()">
+            <el-option
+              v-for="item in protocolList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
             </el-option>
           </el-select>
         </el-form-item>
@@ -873,8 +873,8 @@ export default {
 
   .task-filter-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(130px, 1fr)) auto;
-    gap: 12px;
+    grid-template-columns: 200px 200px 200px 120px 90px auto;
+    gap: 8px;
   }
 
   .task-filter-grid .el-form-item {

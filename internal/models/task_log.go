@@ -112,4 +112,12 @@ func (taskLog *TaskLog) parseWhere(session *xorm.Session, params CommonMap) {
 	if ok && status.(int) > -1 {
 		session.And("status = ?", status)
 	}
+	startTime, ok := params["StartTime"]
+	if ok && startTime.(string) != "" {
+		session.And("start_time >= ?", startTime)
+	}
+	endTime, ok := params["EndTime"]
+	if ok && endTime.(string) != "" {
+		session.And("start_time <= ?", endTime)
+	}
 }

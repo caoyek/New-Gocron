@@ -232,19 +232,37 @@ make run-vue
 go test ./...
 ```
 
-生成当前系统的发布包：
+在 Windows 本地生成 Linux、Windows amd64 完整发布包：
 
-```bash
-make package
+```powershell
+.\scripts\package-release.ps1 -Version v2.0.2
 ```
 
-生成 Linux、Windows 和 macOS 发布包：
+Linux 或 macOS 可使用 Make：
 
 ```bash
-make package-all
+make package VERSION=v2.0.2
 ```
 
-打包脚本依赖 Bash 及对应的压缩工具。跨平台打包前请确认本机 Go 交叉编译环境可用。
+两个入口都会构建前端、更新内嵌静态资源、运行 Go 测试，并在 `dist/` 生成 Windows/Linux 主程序、节点程序和 `SHA256SUMS.txt`。本地构建只生成文件，不会自动上传 GitHub。
+
+### GitHub Actions 自动构建
+
+- 推送 `main`：自动测试并生成 Actions Artifact，不创建 Release。
+- 在 Actions 页面手动运行：生成测试 Artifact，不创建 Release。
+- 推送 `v*` 标签：自动测试、编译并创建或更新对应的 GitHub Release。
+
+正式发布示例：
+
+```bash
+git push origin main
+git tag v2.0.2
+git push origin v2.0.2
+```
+
+需要中文发行说明时，在推送标签前新增 `docs/releases/v2.0.2.md`。工作流会把该文件放在 Release 正文顶部，并在下方追加 GitHub 根据提交和 PR 自动生成的变更记录；未提供该文件时则只使用自动生成内容。
+
+本地和 GitHub 可以同时编译，但正式 Release 的同名资产建议只由 GitHub Actions 上传，避免并发覆盖。
 
 ## 常用端口
 

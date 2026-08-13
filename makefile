@@ -1,6 +1,9 @@
 GO111MODULE=on
 YARN ?= yarn
 GO ?= go
+VERSION ?=
+RELEASE_OS ?= linux,windows
+RELEASE_ARCH ?= amd64
 
 .PHONY: build
 build: gocron node
@@ -43,16 +46,18 @@ enable-race:
 
 .PHONY: package
 package: build-vue statik
-	bash ./package.sh
+	$(GO) test ./...
+	$(GO) run ./tools/package-release -version "$(VERSION)" -os "$(RELEASE_OS)" -arch "$(RELEASE_ARCH)"
 
 .PHONY: package-all
 package-all: build-vue statik
-	bash ./package.sh -p 'linux darwin windows'
+	$(GO) test ./...
+	$(GO) run ./tools/package-release -version "$(VERSION)" -os "linux,darwin,windows" -arch "$(RELEASE_ARCH)"
 
 .PHONY: build-vue
 build-vue:
 	cd web/vue && $(YARN) run build
-	rm -rf web/public
+	rm -rf web/public/static web/public/index.html
 	mkdir -p web/public
 	cp -r web/vue/dist/* web/public/
 
@@ -78,3 +83,4 @@ clean:
 	rm -f bin/gocron bin/gocron.exe
 	rm -f bin/gocron-node bin/gocron-node.exe
 	rm -rf gocron-package gocron-node-package
+	rm -rf dist

@@ -1,0 +1,139 @@
+name: Build and release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "16.20.2"
+          cache: yarn
+          cache-dependency-path: web/vue/yarn.lock
+
+      - name: Install frontend dependencies
+        run: |
+          npm install --global yarn@1.22.22
+          yarn --cwd web/vue install --frozen-lockfile
+
+      - name: Verify tagged version
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          grep -Fq "AppVersion           = \"${version}\"" cmd/gocron/gocron.go
+          grep -Fq "AppVersion           = \"${version}\"" cmd/node/node.go
+          grep -Fq "\"version\": \"${version}\"" web/vue/package.json
+          grep -Fq ">v${version}<" web/vue/src/components/common/navMenu.vue
+
+      - name: Test backend
+        run: go test ./...
+
+      - name: Lint frontend
+        run: yarn --cwd web/vue lint
+
+      - name: Build frontend
+        run: yarn --cwd web/vue build
+
+      - name: Embed frontend assets
+        run: |
+          rm -rf web/public/static web/public/index.html
+          mkdir -p web/public
+          cp -r web/vue/dist/. web/public/
+          go run github.com/rakyll/statik -src=web/public -dest=internal -f
+
+      - name: Resolve package version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="v0.0.0-${GITHUB_SHA::7}"
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build release packages
+        run: go run ./tools/package-release -version "${{ steps.version.outputs.version }}" -os "linux,windows" -arch amd64
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: new-gocron-${{ steps.version.outputs.version }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: new-gocron-${{ github.ref_name }}
+          path: dist
+
+      - name: Prepare release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes_file="docs/releases/${TAG}.md"
+          generated_file="${RUNNER_TEMP}/generated-notes.md"
+          output_file="${RUNNER_TEMP}/release-notes.md"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${TAG}" \
+            -f target_commitish="${GITHUB_SHA}" \
+            --jq .body > "${generated_file}"
+          if [[ -f "${notes_file}" ]]; then
+            cat "${notes_file}" > "${output_file}"
+            printf '\n\n---\n\n' >> "${output_file}"
+          else
+            : > "${output_file}"
+          fi
+          cat "${generated_file}" >> "${output_file}"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          notes_file="${RUNNER_TEMP}/release-notes.md"
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --title "New-Gocron ${TAG}" --notes-file "${notes_file}" --target "${GITHUB_SHA}"
+          else
+            gh release create "${TAG}" --verify-tag --title "New-Gocron ${TAG}" --notes-file "${notes_file}"
+          fi
+          gh release upload "${TAG}" dist/* --clobber

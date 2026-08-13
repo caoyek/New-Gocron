@@ -36,6 +36,7 @@ profile/*
 /web/public/index.html
 /gocron-package
 /gocron-node-package
+/dist
 
 node_modules
 __pycache__/

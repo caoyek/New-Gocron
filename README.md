@@ -46,6 +46,14 @@ curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/inst
 curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --with-node
 ```
 
+一键安装默认使用受限系统用户 `new-gocron` 运行 Web 主程序和任务节点。需要系统权限或访问 `/root` 目录的 Shell 任务，可显式启用 root 节点：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --with-node --node-root
+```
+
+节点运行方式会在后续升级时保持不变。使用 `--node-unprivileged` 可切回 `new-gocron`。root 节点可执行任意系统命令，请仅允许可信管理员编辑任务，并通过防火墙限制 `5921` 端口的访问范围。
+
 ### 更新现有安装
 
 仅更新 Web 主程序：
@@ -58,6 +66,12 @@ curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/inst
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --upgrade --with-node
+```
+
+将现有任务节点改为 root 并更新：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | sudo bash -s -- --upgrade --with-node --node-root
 ```
 
 更新默认针对 `/usr/local/gocron`，并保留 `conf/`、`log/` 和 `backups/`。更新前的程序和配置会备份到 `backups/` 目录。

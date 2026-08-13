@@ -19,6 +19,7 @@ WEB_PORT="$DEFAULT_WEB_PORT"
 NODE_PORT="$DEFAULT_NODE_PORT"
 VERSION=""
 NODE_MODE="auto"
+NODE_ROOT_MODE="auto"
 FORCE_UPGRADE=0
 INSTALL_DIR_SET=0
 CURRENT_STEP="初始化"
@@ -45,6 +46,8 @@ New-Gocron Linux 在线安装程序
   --node-port PORT        任务节点端口，默认 5921
   --with-node             同时安装或升级任务节点
   --without-node          不安装或升级任务节点
+  --node-root             任务节点以 root 运行，用于需要系统权限的 Shell 任务
+  --node-unprivileged     任务节点以 new-gocron 运行（首次安装默认）
   --upgrade               要求当前目录已存在安装，再执行升级
   -h, --help              显示帮助
 
@@ -122,6 +125,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --without-node)
             NODE_MODE="no"
+            shift
+            ;;
+        --node-root)
+            NODE_ROOT_MODE="yes"
+            shift
+            ;;
+        --node-unprivileged)
+            NODE_ROOT_MODE="no"
             shift
             ;;
         --upgrade)
@@ -231,8 +242,16 @@ if [[ "$INSTALL_DIR_SET" -eq 0 ]]; then
 fi
 saved_web_port="$(read_state_value WEB_PORT)"
 saved_node_port="$(read_state_value NODE_PORT)"
+saved_node_root_mode="$(read_state_value NODE_ROOT_MODE)"
 [[ -z "$saved_web_port" || "$WEB_PORT" != "$DEFAULT_WEB_PORT" ]] || WEB_PORT="$saved_web_port"
 [[ -z "$saved_node_port" || "$NODE_PORT" != "$DEFAULT_NODE_PORT" ]] || NODE_PORT="$saved_node_port"
+if [[ "$NODE_ROOT_MODE" == "auto" ]]; then
+    if [[ "$saved_node_root_mode" == "yes" ]]; then
+        NODE_ROOT_MODE="yes"
+    else
+        NODE_ROOT_MODE="no"
+    fi
+fi
 INSTALL_DIR="${INSTALL_DIR%/}"
 validate_install_dir
 validate_port "$WEB_PORT" "Web 端口"
@@ -329,11 +348,20 @@ if ! getent passwd "$RUN_USER" >/dev/null 2>&1; then
     useradd --system --gid "$RUN_USER" --home-dir "$INSTALL_DIR" --no-create-home --shell /usr/sbin/nologin "$RUN_USER"
 fi
 RUN_GROUP="$(id -gn "$RUN_USER")"
+NODE_RUN_USER="$RUN_USER"
+NODE_RUN_GROUP="$RUN_GROUP"
+NODE_ALLOW_ROOT_ARG=""
+if [[ "$NODE_ROOT_MODE" == "yes" ]]; then
+    NODE_RUN_USER="root"
+    NODE_RUN_GROUP="root"
+    NODE_ALLOW_ROOT_ARG="-allow-root "
+fi
 install -d -o root -g root -m 0755 "$INSTALL_DIR"
 install -d -o "$RUN_USER" -g "$RUN_GROUP" -m 0750 "$INSTALL_DIR/conf" "$INSTALL_DIR/log"
 install -d -o root -g root -m 0700 "$INSTALL_DIR/backups"
 chown -R "$RUN_USER:$RUN_GROUP" "$INSTALL_DIR/conf" "$INSTALL_DIR/log"
 ok "运行用户: $RUN_USER"
+[[ "$NODE_MODE" != "yes" ]] || ok "任务节点用户: $NODE_RUN_USER"
 ok "安装目录: $INSTALL_DIR"
 
 if [[ "$EXISTING_INSTALL" -eq 1 ]]; then
@@ -400,10 +428,10 @@ After=network-online.target
 
 [Service]
 Type=simple
-User=$RUN_USER
-Group=$RUN_GROUP
+User=$NODE_RUN_USER
+Group=$NODE_RUN_GROUP
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/gocron-node -s 0.0.0.0:$NODE_PORT
+ExecStart=$INSTALL_DIR/gocron-node ${NODE_ALLOW_ROOT_ARG}-s 0.0.0.0:$NODE_PORT
 Restart=on-failure
 RestartSec=5s
 LimitNOFILE=65535
@@ -424,6 +452,7 @@ cat > "$INSTALL_STATE_FILE" <<EOF
 INSTALL_DIR=$INSTALL_DIR
 WEB_PORT=$WEB_PORT
 NODE_PORT=$NODE_PORT
+NODE_ROOT_MODE=$NODE_ROOT_MODE
 VERSION=$VERSION
 EOF
 chmod 0600 "$INSTALL_STATE_FILE"

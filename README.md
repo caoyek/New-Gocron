@@ -1,6 +1,12 @@
 # New-Gocron
 
-New-Gocron 是一个定时任务管理系统，当前版本为 2.0.1。项目提供 Web 管理端和任务节点，可集中管理 Shell、HTTP 等定时任务。
+New-Gocron 是一个定时任务管理系统，当前版本为 2.0.2。项目提供 Web 管理端和任务节点，可集中管理 Shell、HTTP 等定时任务。
+
+## New-Gocron 2.0.2 主要改动
+
+- 任务列表支持按当前浏览器和登录用户保存置顶任务。
+- 任意分页中的任务置顶后固定显示在第一页，并保留原有搜索、标签、节点、执行方式和状态筛选。
+- 置顶排序在数据库分页前完成，不影响任务保存、调度和执行逻辑，也不需要修改数据库结构。
 
 ## New-Gocron 2.0.1 主要改动
 
@@ -130,7 +136,7 @@ New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 
 1. 备份当前数据库和 `conf/app.ini`。
 2. 停止旧版 Web 服务，避免升级过程中继续写入数据。
-3. 解压 New-Gocron 2.0.1，并保留原有的 `conf/app.ini`、`conf/install.lock` 和 `conf/.version`。
+3. 解压 New-Gocron 2.0.2，并保留原有的 `conf/app.ini`、`conf/install.lock` 和 `conf/.version`。
 4. 在 New-Gocron 程序目录执行数据库升级命令。
 5. 数据库升级成功后再启动 Web 服务和任务节点。
 

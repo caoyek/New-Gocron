@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -313,6 +314,9 @@ func (task *Task) List(params CommonMap) ([]Task, error) {
 	list := make([]Task, 0)
 	session := Db.Alias("t").Join("LEFT", taskHostTableName(), "t.id = th.task_id")
 	task.parseWhere(session, params)
+	if pinnedIds, ok := params["PinnedIds"].([]int); ok && len(pinnedIds) > 0 {
+		session.OrderBy(pinnedTaskOrder(pinnedIds))
+	}
 	err := session.GroupBy("t.id").Desc("t.id").Cols("t.*").Limit(task.PageSize, task.pageLimitOffset()).Find(&list)
 
 	if err != nil {
@@ -330,6 +334,14 @@ func (task *Task) List(params CommonMap) ([]Task, error) {
 	}
 
 	return task.setLastRunsForTasks(list)
+}
+
+func pinnedTaskOrder(ids []int) string {
+	parts := make([]string, 0, len(ids))
+	for index, id := range ids {
+		parts = append(parts, fmt.Sprintf("WHEN %d THEN %d", id, index))
+	}
+	return fmt.Sprintf("CASE t.id %s ELSE %d END ASC", strings.Join(parts, " "), len(ids))
 }
 
 // Children returns the fields needed by dependency task selectors.

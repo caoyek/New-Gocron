@@ -317,6 +317,7 @@ func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	params["Keyword"] = ctx.QueryTrim("keyword")
 	params["Protocol"] = ctx.QueryInt("protocol")
 	params["Tag"] = ctx.QueryTrim("tag")
+	params["PinnedIds"] = parsePinnedIds(ctx.QueryTrim("pinned_ids"))
 	status := ctx.QueryInt("status")
 	if status >= 0 {
 		status -= 1
@@ -325,4 +326,24 @@ func parseQueryParams(ctx *macaron.Context) models.CommonMap {
 	base.ParsePageAndPageSize(ctx, params)
 
 	return params
+}
+
+func parsePinnedIds(value string) []int {
+	const maxPinnedTasks = 100
+
+	ids := make([]int, 0)
+	seen := make(map[int]bool)
+	for _, item := range strings.Split(value, ",") {
+		id, err := strconv.Atoi(strings.TrimSpace(item))
+		if err != nil || id <= 0 || seen[id] {
+			continue
+		}
+		ids = append(ids, id)
+		seen[id] = true
+		if len(ids) == maxPinnedTasks {
+			break
+		}
+	}
+
+	return ids
 }

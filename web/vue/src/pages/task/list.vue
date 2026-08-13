@@ -174,7 +174,18 @@
             :title="scope.row.level === 2
               ? `${scope.row.name}  主任务：${formatParentTasks(scope.row.parent_tasks)}`
               : scope.row.name">
-            <span class="task-name-text">{{scope.row.name}}</span>
+            <span class="task-name-line">
+              <button
+                type="button"
+                class="task-pin-button"
+                :class="{'is-pinned': isTaskPinned(scope.row.id)}"
+                :title="isTaskPinned(scope.row.id) ? '取消置顶' : '置顶任务'"
+                :aria-label="isTaskPinned(scope.row.id) ? '取消置顶' : '置顶任务'"
+                @click.stop="toggleTaskPin(scope.row)">
+                <i :class="isTaskPinned(scope.row.id) ? 'el-icon-star-on' : 'el-icon-star-off'"></i>
+              </button>
+              <span class="task-name-text">{{scope.row.name}}</span>
+            </span>
             <span v-if="scope.row.level === 2" class="task-parent-name">
               主任务：{{formatParentTasks(scope.row.parent_tasks)}}
             </span>
@@ -363,6 +374,7 @@ export default {
       searchRequestId: 0,
       lastSearchParams: null,
       expandedTaskIds: [],
+      pinnedTaskIds: [],
       taskDetailPanelWidth: 0,
       searchParams: {
         page_size: 20,
@@ -418,6 +430,7 @@ export default {
   },
   components: {taskEditor},
   created () {
+    this.loadPinnedTasks()
     const hostId = this.$route.query.host_id
     if (hostId) {
       this.searchParams.host_id = hostId
@@ -468,6 +481,36 @@ export default {
     }
   },
   methods: {
+    pinnedTaskStorageKey () {
+      const uid = this.$store.getters.user.uid || 'anonymous'
+      return `new-gocron:pinned-tasks:${uid}`
+    },
+    loadPinnedTasks () {
+      try {
+        const ids = JSON.parse(localStorage.getItem(this.pinnedTaskStorageKey()) || '[]')
+        this.pinnedTaskIds = Array.isArray(ids)
+          ? ids.map(id => Number(id)).filter((id, index, list) => id > 0 && list.indexOf(id) === index).slice(0, 100)
+          : []
+      } catch (error) {
+        this.pinnedTaskIds = []
+      }
+    },
+    isTaskPinned (id) {
+      return this.pinnedTaskIds.indexOf(Number(id)) !== -1
+    },
+    toggleTaskPin (task) {
+      const id = Number(task.id)
+      if (this.isTaskPinned(id)) {
+        this.pinnedTaskIds = this.pinnedTaskIds.filter(item => item !== id)
+        this.$message.success('已取消置顶')
+      } else {
+        this.pinnedTaskIds = [id].concat(this.pinnedTaskIds).slice(0, 100)
+        this.$message.success('任务已置顶')
+      }
+      localStorage.setItem(this.pinnedTaskStorageKey(), JSON.stringify(this.pinnedTaskIds))
+      this.searchParams.page = 1
+      this.search()
+    },
     formatRunDuration (seconds) {
       const totalSeconds = Math.max(0, Number(seconds) || 0)
       if (totalSeconds < 60) {
@@ -592,6 +635,7 @@ export default {
     search (callback = null, params = null) {
       const requestId = ++this.searchRequestId
       const searchParams = Object.assign({}, params || this.searchParams)
+      searchParams.pinned_ids = this.pinnedTaskIds.join(',')
       if (!params) {
         this.lastSearchParams = searchParams
       }
@@ -1068,7 +1112,32 @@ export default {
   }
 
   .task-name-text {
-    display: block;
+    min-width: 0;
+  }
+
+  .task-name-line {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .task-pin-button {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #b8bbc0;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 18px;
+  }
+
+  .task-pin-button:hover,
+  .task-pin-button.is-pinned {
+    color: #e6a23c;
   }
 
   .task-parent-name {

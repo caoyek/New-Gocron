@@ -735,6 +735,15 @@ export default {
     text-align: center;
   }
 
+  .task-list-main /deep/ .task-status-column .el-switch__core {
+    border: 0;
+  }
+
+  .task-list-main /deep/ .task-status-column .el-switch__button {
+    top: 2px;
+    left: 2px;
+  }
+
   .task-list-main /deep/ .task-status-column .el-tag {
     padding-right: 2px;
     padding-left: 2px;

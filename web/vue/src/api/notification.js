@@ -30,5 +30,23 @@ export default {
   },
   updateWebHook (data, callback) {
     httpClient.post('/system/webhook/update', data, callback)
+  },
+  createWebhookTemplate (data, callback) {
+    httpClient.post('/system/webhook/template', data, callback)
+  },
+  updateWebhookTemplate (templateId, data, callback) {
+    httpClient.post(`/system/webhook/template/update/${templateId}`, data, callback)
+  },
+  removeWebhookTemplate (templateId, callback) {
+    httpClient.post(`/system/webhook/template/remove/${templateId}`, {}, callback)
+  },
+  createWebhookGroup (data, callback) {
+    httpClient.post('/system/webhook/group', data, callback)
+  },
+  updateWebhookGroup (groupId, data, callback) {
+    httpClient.post(`/system/webhook/group/update/${groupId}`, data, callback)
+  },
+  removeWebhookGroup (groupId, callback) {
+    httpClient.post(`/system/webhook/group/remove/${groupId}`, {}, callback)
   }
 }

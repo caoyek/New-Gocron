@@ -148,7 +148,7 @@
                     <el-radio-button v-for="item in notifyStatusList" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1" class="span-6" label="通知类型">
+                <el-form-item v-if="form.notify_status !== 1" :class="form.notify_type === 4 ? 'span-4' : 'span-6'" label="通知类型">
                   <el-radio-group v-model="form.notify_type" size="small">
                     <el-radio-button v-for="item in notifyTypes" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
                   </el-radio-group>
@@ -161,6 +161,16 @@
                 <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 3" class="span-6 notification-recipient" label="发送Channel">
                   <el-select key="notify-slack" v-model="selectedSlackNotifyIds" filterable multiple placeholder="请选择">
                     <el-option v-for="item in slackChannels" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 4" class="span-4 notification-recipient" label="企微群">
+                  <el-select key="notify-webhook" v-model="selectedWebhookNotifyIds" filterable multiple placeholder="请选择">
+                    <el-option v-for="item in webhookGroups" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 4" class="span-4 notification-recipient" label="通知模板">
+                  <el-select key="notify-webhook-template" v-model="selectedWebhookTemplateId" filterable placeholder="请选择">
+                    <el-option v-for="item in webhookTemplates" :key="item.id" :label="item.name" :value="item.id"></el-option>
                   </el-select>
                 </el-form-item>
                 <el-form-item v-if="form.notify_status === 4" class="span-12 notification-rule-form-item" label="输出匹配规则">
@@ -270,6 +280,17 @@ function emptyNotificationRule (type) {
     operator: '>',
     number: null
   }
+}
+
+function parseWebhookNotifyTarget (value) {
+  try {
+    const target = JSON.parse(value)
+    if (target && target.format === 'webhook_target' && target.version === 1) {
+      return target
+    }
+  } catch (e) {}
+
+  return null
 }
 
 export default {
@@ -402,10 +423,14 @@ export default {
       availableChildTasks: [],
       mailUsers: [],
       slackChannels: [],
+      webhookGroups: [],
+      webhookTemplates: [],
       selectedHosts: [],
       selectedDependencyTaskIds: [],
       selectedMailNotifyIds: [],
-      selectedSlackNotifyIds: []
+      selectedSlackNotifyIds: [],
+      selectedWebhookNotifyIds: [],
+      selectedWebhookTemplateId: null
     }
   },
   computed: {
@@ -457,6 +482,8 @@ export default {
       this.selectedDependencyTaskIds = []
       this.selectedMailNotifyIds = []
       this.selectedSlackNotifyIds = []
+      this.selectedWebhookNotifyIds = []
+      this.selectedWebhookTemplateId = null
       this.notificationRuleMode = 'any'
       this.notificationRules = [emptyNotificationRule()]
       this.$nextTick(() => {
@@ -517,6 +544,19 @@ export default {
               this.selectedSlackNotifyIds.push(parseInt(v))
             }
           })
+        } else if (this.form.notify_type === 4) {
+          const target = parseWebhookNotifyTarget(this.form.notify_receiver_id)
+          if (target) {
+            this.selectedWebhookNotifyIds = (target.group_ids || []).map((id) => parseInt(id)).filter((id) => id > 0)
+            this.selectedWebhookTemplateId = parseInt(target.template_id) || this.defaultWebhookTemplateId()
+          } else {
+            notifyReceiverIds.forEach((v) => {
+              if (v !== '') {
+                this.selectedWebhookNotifyIds.push(parseInt(v))
+              }
+            })
+            this.selectedWebhookTemplateId = this.defaultWebhookTemplateId()
+          }
         }
       }
     },
@@ -527,6 +567,19 @@ export default {
       notificationService.slack((data) => {
         this.slackChannels = data.channels || []
       })
+      notificationService.webhook((data) => {
+        this.webhookGroups = data && data.groups ? data.groups : []
+        this.webhookTemplates = data && data.templates ? data.templates : []
+        this.normalizeWebhookTemplateSelection()
+      })
+    },
+    defaultWebhookTemplateId () {
+      return this.webhookTemplates.length > 0 ? this.webhookTemplates[0].id : null
+    },
+    normalizeWebhookTemplateSelection () {
+      if (!this.webhookTemplates.some((template) => template.id === this.selectedWebhookTemplateId)) {
+        this.selectedWebhookTemplateId = this.defaultWebhookTemplateId()
+      }
     },
     loadChildTasks () {
       taskService.children((tasks) => {
@@ -657,6 +710,14 @@ export default {
             this.$message.error('请选择Slack Channel')
             return false
           }
+          if (this.form.notify_type === 4 && this.selectedWebhookNotifyIds.length === 0) {
+            this.$message.error('请选择企微群')
+            return false
+          }
+          if (this.form.notify_type === 4 && !this.selectedWebhookTemplateId) {
+            this.$message.error('请选择通知模板')
+            return false
+          }
         }
         if (this.form.notify_status === 4) {
           const serializedRules = this.serializeNotificationRules()
@@ -679,6 +740,14 @@ export default {
       }
       if (this.form.notify_status > 1 && this.form.notify_type === 3) {
         this.form.notify_receiver_id = this.selectedSlackNotifyIds.join(',')
+      }
+      if (this.form.notify_status > 1 && this.form.notify_type === 4) {
+        this.form.notify_receiver_id = JSON.stringify({
+          format: 'webhook_target',
+          version: 1,
+          group_ids: this.selectedWebhookNotifyIds,
+          template_id: this.selectedWebhookTemplateId
+        })
       }
       taskService.update(this.form, () => {
         this.$message.success('保存成功')

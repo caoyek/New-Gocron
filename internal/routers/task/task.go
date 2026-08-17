@@ -152,8 +152,24 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 	taskModel.Level = form.Level
 	taskModel.DependencyStatus = form.DependencyStatus
 	taskModel.DependencyTaskId = strings.TrimSpace(form.DependencyTaskId)
-	if taskModel.NotifyStatus > 0 && taskModel.NotifyType != 3 && taskModel.NotifyReceiverId == "" {
+	if taskModel.NotifyStatus > 0 && taskModel.NotifyReceiverId == "" {
 		return json.CommonFailure("至少选择一个通知接收者")
+	}
+	if len(taskModel.NotifyReceiverId) > 256 {
+		return json.CommonFailure("通知接收配置过长")
+	}
+	if taskModel.NotifyStatus > 0 && taskModel.NotifyType == 3 {
+		target, decodeErr := models.DecodeWebhookTarget(taskModel.NotifyReceiverId)
+		if decodeErr != nil {
+			return json.CommonFailure("企微通知配置格式无效")
+		}
+		webHook, settingErr := new(models.Setting).Webhook()
+		if settingErr != nil {
+			return json.CommonFailure("读取企微通知配置失败", settingErr)
+		}
+		if validateErr := webHook.ValidateTarget(target); validateErr != nil {
+			return json.CommonFailure(validateErr.Error())
+		}
 	}
 	taskModel.HttpMethod = form.HttpMethod
 	if taskModel.Protocol == models.TaskHTTP {

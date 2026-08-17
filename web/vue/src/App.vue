@@ -82,9 +82,14 @@ export default {
     padding: 0;
   }
 
-  @media (max-width: 680px) {
+  @media (max-width: 768px) {
+    .app-shell__content.el-main {
+      padding-top: 56px;
+      box-sizing: border-box;
+    }
+
     #main-container .el-main {
-      height: calc(100vh - 24px);
+      height: calc(100vh - 80px);
       margin: 12px;
     }
   }

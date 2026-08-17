@@ -98,6 +98,72 @@ func (task *Task) UpdateBean(id int) (int64, error) {
 		Update(task)
 }
 
+func (task *Task) WebhookGroupInUse(groupId, defaultGroupId int) (bool, error) {
+	tasks := make([]Task, 0)
+	err := Db.Cols("notify_receiver_id").
+		Where("notify_type = ?", 3).
+		Find(&tasks)
+	if err != nil {
+		return false, err
+	}
+
+	for _, item := range tasks {
+		if webhookReceiverReferencesGroup(item.NotifyReceiverId, groupId, defaultGroupId) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (task *Task) WebhookTemplateInUse(templateId int) (bool, error) {
+	tasks := make([]Task, 0)
+	err := Db.Cols("notify_receiver_id").
+		Where("notify_type = ?", 3).
+		Find(&tasks)
+	if err != nil {
+		return false, err
+	}
+
+	for _, item := range tasks {
+		if webhookReceiverReferencesTemplate(item.NotifyReceiverId, templateId) {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func webhookReceiverReferencesGroup(receiverIds string, groupId, defaultGroupId int) bool {
+	receiverIds = strings.TrimSpace(receiverIds)
+	if receiverIds == "" {
+		return groupId == defaultGroupId
+	}
+
+	if target, err := DecodeWebhookTarget(receiverIds); err == nil {
+		for _, id := range target.GroupIds {
+			if id == groupId {
+				return true
+			}
+		}
+		return false
+	}
+
+	selectedId := strconv.Itoa(groupId)
+	for _, id := range strings.Split(receiverIds, ",") {
+		if strings.TrimSpace(id) == selectedId {
+			return true
+		}
+	}
+
+	return false
+}
+
+func webhookReceiverReferencesTemplate(receiverIds string, templateId int) bool {
+	target, err := DecodeWebhookTarget(strings.TrimSpace(receiverIds))
+	return err == nil && target.TemplateId == templateId
+}
+
 // 更新
 func (task *Task) Update(id int, data CommonMap) (int64, error) {
 	return Db.Table(task).ID(id).Update(data)

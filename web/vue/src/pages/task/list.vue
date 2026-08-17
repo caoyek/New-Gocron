@@ -1,7 +1,7 @@
 <template>
 <el-container>
   <el-main class="task-list-main">
-    <el-form class="task-filter-form">
+    <el-form class="task-filter-form task-desktop-only">
       <div class="task-filter-grid">
         <el-form-item>
           <el-input
@@ -68,7 +68,7 @@
       </div>
     </el-form>
     <el-pagination
-      class="task-pagination"
+      class="task-pagination task-desktop-only"
       background
       layout="prev, pager, next, sizes, total"
       :total="taskTotal"
@@ -82,7 +82,7 @@
     <el-table
       ref="taskTable"
       :data="tasks"
-      :class="{'has-expanded-task': expandedTaskIds.length > 0}"
+      :class="['task-desktop-only', {'has-expanded-task': expandedTaskIds.length > 0}]"
       tooltip-effect="dark"
       border
       @expand-change="handleExpandChange"
@@ -267,7 +267,7 @@
               v-if="scope.row.level === 1"
               v-model="scope.row.status"
               :active-value="1"
-              :inactive-vlaue="0"
+              :inactive-value="0"
               active-color="#13ce66"
               @change="changeStatus(scope.row)"
               inactive-color="#ff4949">
@@ -287,7 +287,7 @@
             v-if="scope.row.level === 1"
             v-model="scope.row.status"
             :active-value="1"
-            :inactive-vlaue="0"
+            :inactive-value="0"
             active-color="#13ce66"
             :disabled="true"
             inactive-color="#ff4949">
@@ -342,6 +342,187 @@
         </template>
       </el-table-column>
     </el-table>
+
+    <section class="task-mobile-view" aria-label="定时任务列表">
+      <div class="task-mobile-search">
+        <el-input
+          v-model.trim="searchParams.keyword"
+          clearable
+          placeholder="搜索任务..."
+          @keyup.enter.native="applyMobileSearch">
+        </el-input>
+        <el-button
+          class="task-mobile-icon-button"
+          type="primary"
+          icon="el-icon-search"
+          aria-label="搜索"
+          @click="applyMobileSearch">
+        </el-button>
+        <button
+          class="task-mobile-icon-button task-mobile-filter-toggle"
+          type="button"
+          aria-label="筛选"
+          @click="mobileFiltersVisible = !mobileFiltersVisible">
+          <i class="el-icon-setting"></i>
+          <span v-if="activeMobileFilterCount">{{activeMobileFilterCount}}</span>
+        </button>
+      </div>
+
+      <div v-if="mobileFiltersVisible" class="task-mobile-filters">
+        <el-select v-model="searchParams.tag" filterable clearable placeholder="标签">
+          <el-option v-for="tag in tags" :key="tag" :label="tag" :value="tag"></el-option>
+        </el-select>
+        <el-select v-model.trim="searchParams.host_id" clearable placeholder="任务节点">
+          <el-option
+            v-for="item in hosts"
+            :key="item.id"
+            :label="item.alias + ' - ' + item.name + ':' + item.port"
+            :value="item.id">
+          </el-option>
+        </el-select>
+        <div class="task-mobile-filter-row">
+          <el-select v-model.trim="searchParams.protocol" clearable placeholder="执行方式">
+            <el-option
+              v-for="item in protocolList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
+            </el-option>
+          </el-select>
+          <el-select v-model.trim="searchParams.status" clearable placeholder="状态">
+            <el-option
+              v-for="item in statusList"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
+            </el-option>
+          </el-select>
+        </div>
+        <div class="task-mobile-filter-actions">
+          <el-button size="small" @click="resetMobileFilters">重置</el-button>
+          <el-button size="small" type="primary" @click="applyMobileSearch">应用</el-button>
+        </div>
+      </div>
+
+      <div class="task-mobile-summary">
+        <span>共 {{taskTotal}} 个任务</span>
+        <el-button
+          v-if="isAdmin"
+          size="small"
+          type="success"
+          icon="el-icon-plus"
+          @click="toEdit(null)">新增</el-button>
+      </div>
+
+      <div v-if="tasks.length" class="task-mobile-list">
+        <article v-for="item in tasks" :key="item.id" class="task-mobile-card">
+          <header class="task-mobile-card__header" @click="toggleMobileTask(item)">
+            <button
+              type="button"
+              class="task-pin-button task-mobile-pin"
+              :class="{'is-pinned': isTaskPinned(item.id)}"
+              :aria-label="isTaskPinned(item.id) ? '取消置顶' : '置顶任务'"
+              @click.stop="toggleTaskPin(item)">
+              <i :class="isTaskPinned(item.id) ? 'el-icon-star-on' : 'el-icon-star-off'"></i>
+            </button>
+            <span class="task-mobile-id">#{{item.id}}</span>
+            <div class="task-mobile-card__title">
+              <strong>{{item.name}}</strong>
+              <span v-if="item.level === 2">主任务：{{formatParentTasks(item.parent_tasks)}}</span>
+            </div>
+            <div class="task-mobile-card__meta">
+              <el-tag v-if="item.tag" size="mini" type="info">{{item.tag}}</el-tag>
+              <span
+                class="task-mobile-protocol"
+                :class="item.protocol === 2 ? 'is-shell' : 'is-http'">{{mobileProtocolText(item)}}</span>
+            </div>
+            <span class="task-mobile-status" @click.stop>
+              <el-switch
+                v-if="item.level === 1"
+                v-model="item.status"
+                :active-value="1"
+                :inactive-value="0"
+                active-color="#13ce66"
+                inactive-color="#ff4949"
+                :disabled="!isAdmin"
+                @change="changeStatus(item)">
+              </el-switch>
+              <el-tag v-else size="mini" type="info">子任务</el-tag>
+            </span>
+          </header>
+
+          <div class="task-mobile-card__schedule" @click="toggleMobileTask(item)">
+            <div>
+              <span>表达式</span>
+              <strong>{{item.level === 2 ? '子任务' : item.spec}}</strong>
+            </div>
+            <div>
+              <span>下次执行</span>
+              <strong v-if="item.level === 2">随主任务</strong>
+              <strong v-else>{{item.next_run_time | formatTime}}</strong>
+            </div>
+            <div class="task-mobile-card__last-run">
+              <span>上次执行</span>
+              <strong v-if="item.last_run_time" :class="'is-' + lastRunTagType(item.last_run_status)">
+                {{lastRunStatusText(item.last_run_status)}} · {{formatRunDuration(item.last_run_duration)}}
+                <small>{{item.last_run_time | formatTime}}</small>
+              </strong>
+              <strong v-else class="is-empty">暂无执行记录</strong>
+            </div>
+          </div>
+
+          <div
+            v-if="mobileExpandedTaskId === item.id"
+            class="task-mobile-card__details">
+            <dl>
+              <div>
+                <dt>任务节点</dt>
+                <dd>{{mobileHostText(item.hosts)}}</dd>
+              </div>
+              <div>
+                <dt>超时 / 重试</dt>
+                <dd>{{item.timeout | formatTimeout}} · {{item.retry_times}} 次</dd>
+              </div>
+              <div>
+                <dt>备注</dt>
+                <dd>{{item.remark || '暂无备注'}}</dd>
+              </div>
+            </dl>
+            <div class="task-mobile-command">
+              <span>执行命令</span>
+              <pre>{{item.command || '未配置命令'}}</pre>
+            </div>
+          </div>
+
+          <footer v-if="isAdmin" class="task-mobile-card__actions">
+            <el-button size="mini" type="primary" icon="el-icon-edit" @click.stop="toEdit(item)">编辑</el-button>
+            <el-button size="mini" type="success" icon="el-icon-caret-right" @click.stop="runTask(item)">执行</el-button>
+            <el-button size="mini" type="info" icon="el-icon-document" @click.stop="jumpToLog(item)">日志</el-button>
+            <el-button size="mini" type="danger" icon="el-icon-delete" @click.stop="remove(item)">删除</el-button>
+          </footer>
+        </article>
+      </div>
+      <div v-else class="task-mobile-empty">暂无任务</div>
+
+      <nav v-if="taskTotal > 0" class="task-mobile-pagination" aria-label="任务分页">
+        <button
+          type="button"
+          aria-label="上一页"
+          :disabled="searchParams.page <= 1"
+          @click="changePage(searchParams.page - 1)">
+          <i class="el-icon-arrow-left"></i>
+        </button>
+        <span>第 {{searchParams.page}} / {{mobileTotalPages}} 页</span>
+        <button
+          type="button"
+          aria-label="下一页"
+          :disabled="searchParams.page >= mobileTotalPages"
+          @click="changePage(searchParams.page + 1)">
+          <i class="el-icon-arrow-right"></i>
+        </button>
+      </nav>
+    </section>
+
     <task-editor
       :visible.sync="editorVisible"
       :task-id="editingTaskId"
@@ -376,6 +557,8 @@ export default {
       expandedTaskIds: [],
       pinnedTaskIds: [],
       taskDetailPanelWidth: 0,
+      mobileFiltersVisible: false,
+      mobileExpandedTaskId: null,
       searchParams: {
         page_size: 20,
         page: 1,
@@ -426,6 +609,12 @@ export default {
         return Math.max(width, context.measureText(tag || '-').width)
       }, 0)
       return Math.max(130, Math.ceil(textWidth) + 32)
+    },
+    mobileTotalPages () {
+      return Math.max(1, Math.ceil(this.taskTotal / this.searchParams.page_size))
+    },
+    activeMobileFilterCount () {
+      return ['tag', 'host_id', 'protocol', 'status'].filter(key => this.searchParams[key] !== '').length
     }
   },
   components: {taskEditor},
@@ -599,6 +788,32 @@ export default {
         return '未关联'
       }
       return parentTasks.map(item => `${item.id} · ${item.name}`).join('、')
+    },
+    mobileProtocolText (item) {
+      if (item.protocol === 2) {
+        return 'SHELL'
+      }
+      return 'HTTP'
+    },
+    mobileHostText (hosts) {
+      if (!Array.isArray(hosts) || hosts.length === 0) {
+        return '未配置任务节点'
+      }
+      return hosts.map(item => `${item.alias} · ${item.name}:${item.port}`).join('、')
+    },
+    toggleMobileTask (item) {
+      this.mobileExpandedTaskId = this.mobileExpandedTaskId === item.id ? null : item.id
+    },
+    applyMobileSearch () {
+      this.mobileFiltersVisible = false
+      this.applySearch()
+    },
+    resetMobileFilters () {
+      this.searchParams.tag = ''
+      this.searchParams.host_id = ''
+      this.searchParams.protocol = ''
+      this.searchParams.status = ''
+      this.applyMobileSearch()
     },
     applySearch () {
       this.searchParams.page = 1
@@ -1161,6 +1376,10 @@ export default {
     display: block;
   }
 
+  .task-mobile-view {
+    display: none;
+  }
+
   @media (max-width: 1200px) {
     .task-filter-grid {
       grid-template-columns: repeat(3, minmax(220px, 1fr));
@@ -1188,6 +1407,422 @@ export default {
 
     .task-filter-grid {
       grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+  }
+
+  @media (max-width: 768px) {
+    .task-list-main {
+      height: calc(100vh - 80px) !important;
+      margin: 12px !important;
+      overflow-y: auto;
+    }
+
+    .task-desktop-only {
+      display: none !important;
+    }
+
+    .task-mobile-view {
+      display: block;
+      color: #2c2c2b;
+    }
+
+    .task-mobile-search {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 40px 40px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .task-mobile-search /deep/ .el-input__inner {
+      height: 40px;
+      line-height: 40px;
+    }
+
+    .task-mobile-icon-button {
+      position: relative;
+      display: inline-flex;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border-radius: 6px;
+    }
+
+    .task-mobile-filter-toggle {
+      border: 1px solid #d8dce2;
+      outline: 0;
+      background: #ffffff;
+      color: #4c5056;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .task-mobile-filter-toggle span {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      display: inline-flex;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      border-radius: 8px;
+      background: #f25555;
+      color: #ffffff;
+      font-size: 10px;
+      line-height: 16px;
+    }
+
+    .task-mobile-filters {
+      display: grid;
+      margin-top: 10px;
+      padding: 12px;
+      gap: 10px;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      background: #f7f8fa;
+    }
+
+    .task-mobile-filters /deep/ .el-select {
+      width: 100%;
+    }
+
+    .task-mobile-filter-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .task-mobile-filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .task-mobile-filter-actions .el-button + .el-button {
+      margin-left: 0;
+    }
+
+    .task-mobile-summary {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      color: #7d8085;
+      font-size: 12px;
+    }
+
+    .task-mobile-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task-mobile-card {
+      overflow: hidden;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(31, 35, 40, 0.05);
+    }
+
+    .task-mobile-card__header {
+      display: flex;
+      min-height: 54px;
+      padding: 11px 10px;
+      align-items: start;
+      gap: 4px;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    .task-mobile-pin {
+      margin-top: 2px;
+    }
+
+    .task-mobile-card__title {
+      min-width: 0;
+      max-width: 140px;
+      flex: 0 1 auto;
+    }
+
+    .task-mobile-card__title strong {
+      display: block;
+      overflow: hidden;
+      color: #25282d;
+      font-size: 15px;
+      line-height: 21px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-mobile-card__title span {
+      display: block;
+      margin-top: 2px;
+      overflow: hidden;
+      color: #8a8d91;
+      font-size: 11px;
+      line-height: 16px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-mobile-status {
+      width: 36px;
+      min-width: 36px;
+      margin-left: auto;
+      flex: 0 0 36px;
+      text-align: right;
+    }
+
+    .task-mobile-status /deep/ .el-switch {
+      transform: scale(0.9);
+      transform-origin: right top;
+    }
+
+    .task-mobile-status /deep/ .el-switch__core {
+      border: 0;
+    }
+
+    .task-mobile-status /deep/ .el-tag {
+      width: 36px;
+      padding: 0;
+      box-sizing: border-box;
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .task-mobile-status /deep/ .el-switch__button {
+      top: 2px;
+      left: 2px;
+    }
+
+    .task-mobile-card__meta {
+      display: flex;
+      min-width: 0;
+      min-height: 22px;
+      padding: 0;
+      align-items: center;
+      flex: 0 1 auto;
+      gap: 4px;
+      box-sizing: border-box;
+      white-space: nowrap;
+    }
+
+    .task-mobile-card__meta /deep/ .el-tag {
+      max-width: 66px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .task-mobile-id {
+      margin-top: 2px;
+      flex: 0 0 auto;
+      color: #92969b;
+      font-size: 11px;
+      line-height: 18px;
+    }
+
+    .task-mobile-protocol {
+      display: inline-flex;
+      height: 20px;
+      padding: 0 6px;
+      align-items: center;
+      border: 1px solid;
+      border-radius: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 18px;
+    }
+
+    .task-mobile-protocol.is-http {
+      border-color: #a9d2ef;
+      background: #eef7fd;
+      color: #2677a8;
+    }
+
+    .task-mobile-protocol.is-shell {
+      border-color: #efd2a2;
+      background: #fff8ea;
+      color: #a56814;
+    }
+
+    .task-mobile-card__schedule {
+      display: grid;
+      padding: 10px 12px;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      gap: 10px 14px;
+      border-top: 1px solid #eceef1;
+      background: #fafbfc;
+      cursor: pointer;
+    }
+
+    .task-mobile-card__schedule > div {
+      min-width: 0;
+    }
+
+    .task-mobile-card__schedule span {
+      display: block;
+      margin-bottom: 2px;
+      color: #8a8d91;
+      font-size: 11px;
+      line-height: 16px;
+    }
+
+    .task-mobile-card__schedule strong {
+      display: block;
+      overflow: hidden;
+      color: #45484d;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 18px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-mobile-card__last-run {
+      grid-column: 1 / -1;
+    }
+
+    .task-mobile-card__last-run strong small {
+      margin-left: 5px;
+      color: #92969b;
+      font-size: 11px;
+      font-weight: 400;
+    }
+
+    .task-mobile-card__last-run strong.is-success {
+      color: #4b9f2f;
+    }
+
+    .task-mobile-card__last-run strong.is-danger {
+      color: #e34f4f;
+    }
+
+    .task-mobile-card__last-run strong.is-warning {
+      color: #c98215;
+    }
+
+    .task-mobile-card__last-run strong.is-info,
+    .task-mobile-card__last-run strong.is-empty {
+      color: #7d8085;
+    }
+
+    .task-mobile-card__details {
+      padding: 12px;
+      border-top: 1px solid #e1e4e8;
+    }
+
+    .task-mobile-card__details dl {
+      display: grid;
+      margin: 0;
+      gap: 10px;
+    }
+
+    .task-mobile-card__details dl > div {
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .task-mobile-card__details dt {
+      color: #8a8d91;
+      font-size: 11px;
+      line-height: 18px;
+    }
+
+    .task-mobile-card__details dd {
+      margin: 0;
+      color: #45484d;
+      font-size: 12px;
+      line-height: 18px;
+      overflow-wrap: anywhere;
+    }
+
+    .task-mobile-command {
+      margin-top: 12px;
+    }
+
+    .task-mobile-command > span {
+      display: block;
+      margin-bottom: 5px;
+      color: #8a8d91;
+      font-size: 11px;
+    }
+
+    .task-mobile-command pre {
+      max-height: 160px;
+      margin: 0;
+      padding: 10px;
+      overflow: auto;
+      border-radius: 4px;
+      background: #1f232b;
+      color: #e6edf3;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 18px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .task-mobile-card__actions {
+      display: grid;
+      padding: 9px 10px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+      border-top: 1px solid #eceef1;
+    }
+
+    .task-mobile-card__actions .el-button {
+      width: 100%;
+      height: 34px;
+      padding: 0 4px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .task-mobile-card__actions .el-button + .el-button {
+      margin-left: 0;
+    }
+
+    .task-mobile-empty {
+      padding: 48px 0;
+      color: #9a9da1;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .task-mobile-pagination {
+      display: grid;
+      margin: 14px 0 4px;
+      grid-template-columns: 40px minmax(0, 1fr) 40px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .task-mobile-pagination button {
+      width: 40px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid #d8dce2;
+      border-radius: 4px;
+      outline: 0;
+      background: #ffffff;
+      color: #4c5056;
+    }
+
+    .task-mobile-pagination button:disabled {
+      background: #f3f4f6;
+      color: #b8bbc0;
+    }
+
+    .task-mobile-pagination span {
+      color: #73767a;
+      font-size: 12px;
+      text-align: center;
     }
   }
 

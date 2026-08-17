@@ -128,6 +128,12 @@ func Register(m *macaron.Macaron) {
 		m.Group("/webhook", func() {
 			m.Get("", manage.WebHook)
 			m.Post("/update", manage.UpdateWebHook)
+			m.Post("/template", manage.CreateWebhookTemplate)
+			m.Post("/template/update/:id", manage.UpdateWebhookTemplate)
+			m.Post("/template/remove/:id", manage.RemoveWebhookTemplate)
+			m.Post("/group", manage.CreateWebhookGroup)
+			m.Post("/group/update/:id", manage.UpdateWebhookGroup)
+			m.Post("/group/remove/:id", manage.RemoveWebhookGroup)
 		})
 		m.Group("/login-security", func() {
 			m.Get("", manage.LoginSecurity)

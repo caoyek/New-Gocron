@@ -1,5 +1,34 @@
 <template>
-  <aside class="app-sidebar" v-cloak>
+  <div class="app-navigation" :class="{'is-mobile-open': mobileMenuOpen}" v-cloak>
+    <header class="mobile-app-header">
+      <button
+        class="mobile-app-header__menu"
+        type="button"
+        aria-label="打开导航"
+        :aria-expanded="mobileMenuOpen ? 'true' : 'false'"
+        @click="mobileMenuOpen = true">
+        <i class="el-icon-menu"></i>
+      </button>
+      <div class="mobile-app-header__brand">
+        <img :src="brandIcon" alt="New-Gocron">
+        <span>{{mobilePageTitle}}</span>
+      </div>
+      <button
+        class="mobile-app-header__account"
+        type="button"
+        aria-label="打开账号菜单"
+        @click="mobileMenuOpen = true">{{accountInitial}}</button>
+    </header>
+
+    <button
+      v-if="mobileMenuOpen"
+      class="mobile-nav-backdrop"
+      type="button"
+      aria-label="关闭导航"
+      @click="mobileMenuOpen = false">
+    </button>
+
+    <aside class="app-sidebar">
     <div class="sidebar-brand">
       <img class="sidebar-brand__icon" :src="brandIcon" alt="New-Gocron">
       <span class="sidebar-brand__text">New-Gocron</span>
@@ -84,7 +113,8 @@
         </el-dropdown-menu>
       </el-dropdown>
     </div>
-  </aside>
+    </aside>
+  </div>
 </template>
 
 <script>
@@ -94,7 +124,8 @@ export default {
   name: 'app-nav-menu',
   data () {
     return {
-      brandIcon
+      brandIcon,
+      mobileMenuOpen: false
     }
   },
   computed: {
@@ -106,6 +137,26 @@ export default {
     },
     accountInitial () {
       return this.username.charAt(0).toUpperCase()
+    },
+    mobilePageTitle () {
+      const titles = {
+        '/dashboard': '数据看板',
+        '/task': '定时任务',
+        '/task/log': '执行日志',
+        '/host': '任务节点',
+        '/user': '用户管理',
+        '/system': '推送设置',
+        '/system/login-log': '登录日志',
+        '/system/login-security': '登录安全'
+      }
+      const path = this.$route.path
+      if (path.indexOf('/user/edit-my-password') === 0) {
+        return '修改密码'
+      }
+      if (path.indexOf('/system/notification') === 0) {
+        return '推送设置'
+      }
+      return titles[path] || 'New-Gocron'
     },
     currentRoute () {
       const path = this.$route.path
@@ -139,6 +190,11 @@ export default {
       return ''
     }
   },
+  watch: {
+    '$route' () {
+      this.mobileMenuOpen = false
+    }
+  },
   methods: {
     handleUserCommand (command) {
       if (command === 'password') {
@@ -158,12 +214,24 @@ export default {
 </script>
 
 <style scoped>
-.app-sidebar {
+.app-navigation {
   display: flex;
   width: 188px;
   height: 100vh;
-  box-sizing: border-box;
   flex: 0 0 188px;
+}
+
+.mobile-app-header,
+.mobile-nav-backdrop {
+  display: none;
+}
+
+.app-sidebar {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  box-sizing: border-box;
+  flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
   background: #1f2022;
@@ -331,6 +399,11 @@ export default {
 }
 
 @media (max-width: 840px) {
+  .app-navigation {
+    width: 72px;
+    flex-basis: 72px;
+  }
+
   .app-sidebar {
     width: 72px;
     flex-basis: 72px;
@@ -373,6 +446,150 @@ export default {
   .sidebar-account__button {
     padding: 0;
     justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-navigation {
+    width: 0;
+    height: 0;
+    flex-basis: 0;
+  }
+
+  .mobile-app-header {
+    position: fixed;
+    z-index: 1600;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: grid;
+    height: 56px;
+    padding: 0 12px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    align-items: center;
+    box-sizing: border-box;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+    box-shadow: 0 1px 4px rgba(31, 32, 34, 0.06);
+  }
+
+  .mobile-app-header__menu,
+  .mobile-app-header__account {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 6px;
+    outline: 0;
+    background: transparent;
+    color: #3f454d;
+    cursor: pointer;
+  }
+
+  .mobile-app-header__menu {
+    font-size: 20px;
+  }
+
+  .mobile-app-header__account {
+    background: #53657a;
+    color: #ffffff;
+    font-size: 13px;
+  }
+
+  .mobile-app-header__brand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #25282d;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .mobile-app-header__brand img {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+  }
+
+  .mobile-app-header__brand span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-nav-backdrop {
+    position: fixed;
+    z-index: 1690;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 260px;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: rgba(18, 20, 23, 0.42);
+  }
+
+  .app-sidebar {
+    position: fixed;
+    z-index: 1700;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    flex-basis: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .is-mobile-open .app-sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-brand {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .sidebar-brand__text,
+  .sidebar-section__label,
+  .sidebar-account__name,
+  .sidebar-account__arrow {
+    display: block;
+  }
+
+  .sidebar-section + .sidebar-section {
+    margin-top: 24px;
+  }
+
+  .sidebar-menu /deep/ .el-menu-item {
+    margin-right: 12px;
+    margin-left: 12px;
+    padding: 0 14px !important;
+    text-align: left;
+  }
+
+  .sidebar-menu /deep/ .el-menu-item i {
+    width: 22px;
+    margin-right: 8px;
+    font-size: 14px;
+  }
+
+  .sidebar-account {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .sidebar-account__button {
+    padding: 0 10px;
+    justify-content: flex-start;
   }
 }
 </style>

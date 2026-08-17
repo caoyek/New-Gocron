@@ -93,7 +93,7 @@
     </nav>
 
     <div class="sidebar-version">
-      <span>v2.0.2</span>
+      <span>v2.0.3</span>
       <a
         class="sidebar-version__link"
         href="https://github.com/caoyek/New-Gocron"

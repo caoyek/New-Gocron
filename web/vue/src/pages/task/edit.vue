@@ -148,31 +148,33 @@
                     <el-radio-button v-for="item in notifyStatusList" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1" :class="form.notify_type === 4 ? 'span-4' : 'span-6'" label="通知类型">
-                  <el-radio-group v-model="form.notify_type" size="small">
-                    <el-radio-button v-for="item in notifyTypes" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 2" class="span-6 notification-recipient" label="接收用户">
-                  <el-select key="notify-mail" v-model="selectedMailNotifyIds" filterable multiple placeholder="请选择">
-                    <el-option v-for="item in mailUsers" :key="item.id" :label="item.username" :value="item.id"></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 3" class="span-6 notification-recipient" label="发送Channel">
-                  <el-select key="notify-slack" v-model="selectedSlackNotifyIds" filterable multiple placeholder="请选择">
-                    <el-option v-for="item in slackChannels" :key="item.id" :label="item.name" :value="item.id"></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 4" class="span-4 notification-recipient" label="企微群">
-                  <el-select key="notify-webhook" v-model="selectedWebhookNotifyIds" filterable multiple placeholder="请选择">
-                    <el-option v-for="item in webhookGroups" :key="item.id" :label="item.name" :value="item.id"></el-option>
-                  </el-select>
-                </el-form-item>
-                <el-form-item v-if="form.notify_status !== 1 && form.notify_type === 4" class="span-4 notification-recipient" label="通知模板">
-                  <el-select key="notify-webhook-template" v-model="selectedWebhookTemplateId" filterable placeholder="请选择">
-                    <el-option v-for="item in webhookTemplates" :key="item.id" :label="item.name" :value="item.id"></el-option>
-                  </el-select>
-                </el-form-item>
+                <div v-if="form.notify_status !== 1" class="notification-settings-row" :class="{'is-webhook': form.notify_type === 4}">
+                  <el-form-item label="通知类型">
+                    <el-radio-group v-model="form.notify_type" size="small">
+                      <el-radio-button v-for="item in notifyTypes" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item v-if="form.notify_type === 2" class="notification-recipient" label="接收用户">
+                    <el-select key="notify-mail" v-model="selectedMailNotifyIds" filterable multiple collapse-tags placeholder="请选择">
+                      <el-option v-for="item in mailUsers" :key="item.id" :label="item.username" :value="item.id"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item v-if="form.notify_type === 3" class="notification-recipient" label="发送Channel">
+                    <el-select key="notify-slack" v-model="selectedSlackNotifyIds" filterable multiple collapse-tags placeholder="请选择">
+                      <el-option v-for="item in slackChannels" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item v-if="form.notify_type === 4" class="notification-recipient notification-recipient--scroll" label="企微群">
+                    <el-select key="notify-webhook" v-model="selectedWebhookNotifyIds" filterable multiple placeholder="请选择">
+                      <el-option v-for="item in webhookGroups" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item v-if="form.notify_type === 4" class="notification-recipient" label="通知模板">
+                    <el-select key="notify-webhook-template" v-model="selectedWebhookTemplateId" filterable placeholder="请选择">
+                      <el-option v-for="item in webhookTemplates" :key="item.id" :label="item.name" :value="item.id"></el-option>
+                    </el-select>
+                  </el-form-item>
+                </div>
                 <el-form-item v-if="form.notify_status === 4" class="span-12 notification-rule-form-item" label="输出匹配规则">
                   <div class="notification-rule-toolbar">
                     <span>满足</span>
@@ -985,12 +987,89 @@ export default {
   width: 100%;
 }
 
+.notification-settings-row {
+  display: grid;
+  min-width: 0;
+  grid-column: span 12;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.notification-settings-row.is-webhook {
+  grid-template-columns: calc((100% - 10px) / 2) repeat(2, minmax(0, 1fr));
+}
+
 .notification-recipient /deep/ .el-select__tags {
+  display: flex;
+  height: 30px;
   max-width: calc(100% - 32px) !important;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .notification-recipient /deep/ .el-input__inner {
   height: 30px !important;
+  min-height: 30px !important;
+}
+
+.notification-recipient /deep/ .el-select__tags > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  overflow: hidden;
+}
+
+.notification-recipient /deep/ .el-tag {
+  height: 20px;
+  margin-top: 0;
+  margin-bottom: 0;
+  min-width: 0;
+  flex: 0 1 auto;
+  line-height: 18px;
+}
+
+.notification-recipient /deep/ .el-select__tags-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.notification-recipient /deep/ .el-select__input {
+  height: 20px;
+  margin-left: 5px;
+  min-width: 0;
+  font-size: 11px;
+}
+
+.notification-recipient--scroll /deep/ .el-select__tags {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.notification-recipient--scroll /deep/ .el-select__tags::-webkit-scrollbar {
+  display: none;
+}
+
+.notification-recipient--scroll /deep/ .el-select__tags > span {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.notification-recipient--scroll /deep/ .el-tag {
+  max-width: none;
+  flex: 0 0 auto;
+}
+
+.notification-recipient--scroll /deep/ .el-select__tags-text {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .notification-rule-form-item /deep/ .el-form-item__content {
@@ -1069,6 +1148,7 @@ export default {
 .compact-edit-form /deep/ .el-radio-group {
   display: flex;
   width: 100%;
+  box-sizing: border-box;
   padding: 2px;
   border-radius: 6px;
   background: #f0efed;
@@ -1360,6 +1440,11 @@ export default {
   .span-7,
   .span-12 {
     grid-column: span 12;
+  }
+
+  .notification-settings-row,
+  .notification-settings-row.is-webhook {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .compact-dialog-footer {

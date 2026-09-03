@@ -111,7 +111,7 @@
           label="任务节点"
           min-width="240">
           <template slot-scope="scope">
-            <div class="task-log-host" v-html="scope.row.hostname">{{scope.row.hostname}}</div>
+            <div class="task-log-host">{{formatTaskHosts(scope.row.hostname)}}</div>
           </template>
         </el-table-column>
         <el-table-column
@@ -278,6 +278,9 @@ export default {
       }
       return 'shell'
     },
+    formatTaskHosts (hostname) {
+      return String(hostname || '').replace(/<br\s*\/?>/gi, '\n')
+    },
     changePage (page) {
       this.searchParams.page = page
       this.search()
@@ -366,10 +369,6 @@ export default {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .task-log-host /deep/ br {
-    display: none;
   }
 
   .task-result-dialog-title {

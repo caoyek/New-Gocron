@@ -279,11 +279,11 @@ func createTaskLog(taskModel models.Task, status models.Status) (int64, error) {
 	taskLogModel.Command = taskModel.Command
 	taskLogModel.Timeout = taskModel.Timeout
 	if taskModel.Protocol == models.TaskRPC {
-		aggregationHost := ""
+		hostNames := make([]string, 0, len(taskModel.Hosts))
 		for _, host := range taskModel.Hosts {
-			aggregationHost += fmt.Sprintf("%s - %s<br>", host.Alias, host.Name)
+			hostNames = append(hostNames, fmt.Sprintf("%s - %s", host.Alias, host.Name))
 		}
-		taskLogModel.Hostname = aggregationHost
+		taskLogModel.Hostname = strings.Join(hostNames, "\n")
 	}
 	taskLogModel.StartTime = time.Now()
 	taskLogModel.Status = status

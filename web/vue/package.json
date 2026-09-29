@@ -1,6 +1,6 @@
 {
   "name": "new-gocron",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "定时任务管理系统",
   "author": "ouqiang <qingqianludao@gmail.com>",
   "private": true,

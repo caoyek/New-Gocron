@@ -769,7 +769,6 @@ export default {
 .task-editor-layout {
   height: auto;
   min-height: 0;
-  max-height: calc(94vh - 104px);
   box-sizing: border-box;
 }
 
@@ -1368,7 +1367,8 @@ export default {
 .task-edit-dialog /deep/ .el-dialog__body {
   min-height: 0;
   flex: 1 1 auto;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0;
 }
 
@@ -1415,8 +1415,6 @@ export default {
 
   .task-editor-layout {
     display: block;
-    max-height: calc(96vh - 112px);
-    overflow-y: auto;
   }
 
   .task-command-panel {

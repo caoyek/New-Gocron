@@ -156,7 +156,10 @@ New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 | `{prefix}task` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
 | `{prefix}task_log` | `command` | `VARCHAR(256)` | `TEXT NOT NULL` |
 | `{prefix}task` | `notify_keyword` | `VARCHAR(128)` | `TEXT NOT NULL` |
+| `{prefix}task` | `notify_receiver_id` | 部分旧 MySQL 数据库为 `INT` | `VARCHAR(256) NOT NULL DEFAULT ''` |
 | `{prefix}task` | `deleted` | 部分异常数据库为数值类型 | MySQL `DATETIME NULL` / PostgreSQL `TIMESTAMP NULL` |
+
+MySQL 的通知接收字段会在启动和 `db-upgrade` 时检查，不依赖 `conf/.version` 是否已升级；已有更宽的字符串字段不会缩短。迁移保留原接收 ID，将 `NULL` 转为空字符串。若企微群配置此前已被整数列转换为 `0`，迁移无法恢复原选择，请重新选择群和模板后保存。生产环境操作前请备份数据库，迁移需要 `ALTER`、`SELECT` 和 `UPDATE` 权限。
 
 登录安全功能还会新增两张表：
 

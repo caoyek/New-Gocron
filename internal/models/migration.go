@@ -284,6 +284,9 @@ func (m *Migration) EnsureNotificationRuleSchema() error {
 
 	switch Db.Dialect().DBType() {
 	case core.MYSQL:
+		if err := ensureMySQLNotifyReceiverColumn(session, taskTable); err != nil {
+			return err
+		}
 		return ensureMySQLTextColumn(session, taskTable, "notify_keyword")
 	case core.POSTGRES:
 		return ensurePostgresTextColumn(session, taskTable, "notify_keyword")
@@ -317,6 +320,9 @@ func (m *Migration) EnsureLoginSecurityTables() error {
 func (m *Migration) upgradeFor200MySQL(session *xorm.Session) error {
 	taskTable := TablePrefix + "task"
 	taskLogTable := TablePrefix + "task_log"
+	if err := ensureMySQLNotifyReceiverColumn(session, taskTable); err != nil {
+		return err
+	}
 	if err := ensureMySQLTextColumn(session, taskTable, "notify_keyword"); err != nil {
 		return err
 	}
@@ -447,6 +453,42 @@ func (m *Migration) upgradeFor200Postgres(session *xorm.Session) error {
 	_, err = session.Exec(fmt.Sprintf(
 		"ALTER TABLE %s RENAME COLUMN deleted_v2 TO deleted", taskTable))
 
+	return err
+}
+
+// Legacy databases may store receiver IDs as integers. Convert before replacing
+// NULLs: assigning an empty string to an integer fails in strict SQL mode.
+func ensureMySQLNotifyReceiverColumn(session *xorm.Session, tableName string) error {
+	rows, err := session.Query(
+		"SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE FROM information_schema.COLUMNS "+
+			"WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?",
+		tableName, "notify_receiver_id")
+	if err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return errors.New("task表缺少notify_receiver_id字段")
+	}
+	columnType := strings.ToLower(string(rows[0]["DATA_TYPE"]))
+	length, _ := strconv.Atoi(string(rows[0]["CHARACTER_MAXIMUM_LENGTH"]))
+	// Do not shrink existing wider string columns or rewrite valid schemas.
+	if columnType == "text" || columnType == "mediumtext" || columnType == "longtext" ||
+		(columnType == "varchar" && length >= 256 && string(rows[0]["IS_NULLABLE"]) == "NO") {
+		return nil
+	}
+	if length < 256 {
+		length = 256
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE `%s` MODIFY COLUMN notify_receiver_id VARCHAR(%d) NULL", tableName, length)); err != nil {
+		return err
+	}
+	if _, err = session.Exec(fmt.Sprintf(
+		"UPDATE `%s` SET notify_receiver_id = '' WHERE notify_receiver_id IS NULL", tableName)); err != nil {
+		return err
+	}
+	_, err = session.Exec(fmt.Sprintf(
+		"ALTER TABLE `%s` MODIFY COLUMN notify_receiver_id VARCHAR(%d) NOT NULL DEFAULT ''", tableName, length))
 	return err
 }
 

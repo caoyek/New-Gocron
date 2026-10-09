@@ -28,6 +28,13 @@ New-Gocron 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 二次开�
 
 ## 更新说明
 
+### 任务配置
+
+- HTTP 任务支持逐行填写自定义 Header，例如 `Authorization: Bearer token`。POST Body 使用 JSON，留空不发送请求体；原有 URL 问号后参数作为表单提交的旧任务保持兼容。JSON 模式下 URL 查询参数仍保留在 URL 中。
+- 可设置任务到期时间（服务器本地时间），留空表示永久生效。到期后自动暂停调度，并禁止手动执行和子任务触发；已开始的执行及其重试允许结束。后台每分钟检查到期任务，执行前也会校验。
+- 可关闭单个任务的执行日志，关闭后不再写入数据库执行记录及输出，但重试、通知和子任务不受影响。程序和节点的运行日志不在此开关范围内。
+- 日志可保留 7天、30天、90天、180天、1年或永久。新建任务默认90天，旧任务保持开启日志、永久保留。程序启动及之后每小时分批清理超期的已结束日志，不删除执行中的日志；关闭记录也不会立即删除历史日志。
+
 当前版本修复执行日志 XSS、任务通知选择框布局，以及小窗口下编辑弹窗无法滚动的问题。完整版本记录（含上游 gocron 历史版本概要）请查看 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 二进制部署
@@ -158,6 +165,13 @@ New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 | `{prefix}task` | `notify_keyword` | `VARCHAR(128)` | `TEXT NOT NULL` |
 | `{prefix}task` | `notify_receiver_id` | 部分旧 MySQL 数据库为 `INT` | `VARCHAR(256) NOT NULL DEFAULT ''` |
 | `{prefix}task` | `deleted` | 部分异常数据库为数值类型 | MySQL `DATETIME NULL` / PostgreSQL `TIMESTAMP NULL` |
+| `{prefix}task` | `http_headers` / `http_body` | 新增 | `TEXT` |
+| `{prefix}task` | `http_body_mode` | 新增 | `VARCHAR(16)`，空值表示兼容表单模式 |
+| `{prefix}task` | `expires_at` | 新增 | `VARCHAR(19)`，空值表示不过期 |
+| `{prefix}task` | `log_disabled` | 新增 | 布尔值，默认关闭标记为假 |
+| `{prefix}task` | `log_retention_days` | 新增 | 整数，默认0表示永久保留 |
+
+上述任务配置字段在启动和 `db-upgrade` 时自动检查并补齐，不依赖版本标记是否变化。升级前备份数据库，并确保数据库账号具有新增字段权限；任务节点无需因这些配置更新。
 
 MySQL 的通知接收字段会在启动和 `db-upgrade` 时检查，不依赖 `conf/.version` 是否已升级；已有更宽的字符串字段不会缩短。迁移保留原接收 ID，将 `NULL` 转为空字符串。若企微群配置此前已被整数列转换为 `0`，迁移无法恢复原选择，请重新选择群和模板后保存。生产环境操作前请备份数据库，迁移需要 `ALTER`、`SELECT` 和 `UPDATE` 权限。
 

@@ -141,6 +141,9 @@ func initModule() {
 	}
 
 	// 初始化定时任务
+	if err = migration.EnsureTaskOptionsSchema(); err != nil {
+		logger.Fatal("初始化任务配置字段失败", err)
+	}
 	service.ServiceTask.Initialize()
 }
 

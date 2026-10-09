@@ -3,6 +3,7 @@ package task
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ouqiang/goutil"
 
@@ -26,8 +27,14 @@ type TaskForm struct {
 	Protocol         models.TaskProtocol   `binding:"In(1,2)"`
 	Command          string                `binding:"Required"`
 	HttpMethod       models.TaskHTTPMethod `binding:"In(1,2)"`
-	Timeout          int                   `binding:"Range(0,86400)"`
-	Multi            int8                  `binding:"In(1,2)"`
+	HttpHeaders      string
+	HttpBodyMode     string
+	HttpBody         string
+	ExpiresAt        string
+	LogDisabled      bool
+	LogRetentionDays int
+	Timeout          int  `binding:"Range(0,86400)"`
+	Multi            int8 `binding:"In(1,2)"`
 	RetryTimes       int8
 	RetryInterval    int16
 	HostId           string
@@ -172,6 +179,15 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 		}
 	}
 	taskModel.HttpMethod = form.HttpMethod
+	taskModel.HttpHeaders = strings.TrimSpace(form.HttpHeaders)
+	taskModel.HttpBodyMode = form.HttpBodyMode
+	taskModel.HttpBody = form.HttpBody
+	taskModel.ExpiresAt = strings.TrimSpace(form.ExpiresAt)
+	taskModel.LogDisabled = form.LogDisabled
+	taskModel.LogRetentionDays = form.LogRetentionDays
+	if err := taskModel.ValidateOptions(); err != nil {
+		return json.CommonFailure(err.Error())
+	}
 	if taskModel.Protocol == models.TaskHTTP {
 		command := strings.ToLower(taskModel.Command)
 		if !strings.HasPrefix(command, "http://") && !strings.HasPrefix(command, "https://") {
@@ -236,6 +252,11 @@ func Store(ctx *macaron.Context, form TaskForm) string {
 	}
 
 	status, _ := taskModel.GetStatus(id)
+	if taskModel.Expired(time.Now()) {
+		taskModel.Id = id
+		service.ServiceTask.PauseExpired(taskModel)
+		return json.Success("保存成功，任务已到期并暂停", nil)
+	}
 	if status == models.Enabled {
 		if taskModel.Level == models.TaskLevelParent {
 			addTaskToTimer(id)
@@ -286,7 +307,14 @@ func Run(ctx *macaron.Context) string {
 	}
 
 	task.Spec = "手动运行"
+	if task.Expired(time.Now()) {
+		service.ServiceTask.PauseExpired(task)
+		return json.CommonFailure("任务已到期，请先修改到期时间")
+	}
 	service.ServiceTask.Run(task)
+	if task.LogDisabled {
+		return json.Success("任务已开始运行（该任务已关闭执行日志）", nil)
+	}
 
 	return json.Success("任务已开始运行, 请到任务日志中查看结果", nil)
 }
@@ -296,6 +324,16 @@ func changeStatus(ctx *macaron.Context, status models.Status) string {
 	id := ctx.ParamsInt(":id")
 	json := utils.JsonResponse{}
 	taskModel := new(models.Task)
+	if status == models.Enabled {
+		item, err := taskModel.Detail(id)
+		if err != nil || item.Id == 0 {
+			return json.CommonFailure("获取任务详情失败", err)
+		}
+		if item.Expired(time.Now()) {
+			service.ServiceTask.PauseExpired(item)
+			return json.CommonFailure("任务已到期，请先修改到期时间")
+		}
+	}
 	_, err := taskModel.Update(id, models.CommonMap{
 		"status": status,
 	})

@@ -265,6 +265,9 @@ func (m *Migration) upgradeFor200(session *xorm.Session) error {
 
 // UpgradeTo200 applies the v2.0 schema changes independently of the version file.
 func (m *Migration) UpgradeTo200() error {
+	if err := m.EnsureTaskOptionsSchema(); err != nil {
+		return err
+	}
 	if err := m.EnsureLoginSecurityTables(); err != nil {
 		return err
 	}

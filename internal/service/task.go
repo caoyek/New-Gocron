@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ouqiang/goutil"
@@ -35,7 +36,9 @@ var (
 	taskCount TaskCount
 
 	// 并发队列, 限制同时运行的任务数量
-	concurrencyQueue ConcurrencyQueue
+	concurrencyQueue  ConcurrencyQueue
+	maintenanceStop   chan struct{}
+	executionSequence int64 = time.Now().UnixNano()
 )
 
 // 并发队列
@@ -111,6 +114,9 @@ func (task Task) Initialize() {
 	concurrencyQueue = ConcurrencyQueue{queue: make(chan struct{}, app.Setting.ConcurrencyQueue)}
 	taskCount = TaskCount{sync.WaitGroup{}, make(chan struct{})}
 	go taskCount.Wait()
+	maintenanceStop = make(chan struct{})
+	task.pauseExpiredTasks()
+	go task.maintain(maintenanceStop)
 
 	logger.Info("开始初始化定时任务")
 	taskModel := new(models.Task)
@@ -150,6 +156,10 @@ func (task Task) RemoveAndAdd(taskModel models.Task) {
 
 // 添加任务
 func (task Task) Add(taskModel models.Task) {
+	if taskModel.Expired(time.Now()) {
+		task.PauseExpired(taskModel)
+		return
+	}
 	if taskModel.Level == models.TaskLevelChild {
 		logger.Errorf("添加任务失败#不允许添加子任务到调度器#任务Id-%d", taskModel.Id)
 		return
@@ -196,6 +206,7 @@ func (task Task) Remove(id int) {
 
 // 等待所有任务结束后退出
 func (task Task) WaitAndExit() {
+	close(maintenanceStop)
 	serviceCron.Stop()
 	taskCount.Exit()
 }
@@ -213,17 +224,27 @@ type Handler interface {
 type HTTPHandler struct{}
 
 func (h *HTTPHandler) Run(taskModel models.Task, taskUniqueId int64) (result string, err error) {
+	headers, err := models.ParseHTTPHeaders(taskModel.HttpHeaders)
+	if err != nil {
+		return "", err
+	}
 	var resp httpclient.ResponseWrapper
 	if taskModel.HttpMethod == models.TaskHTTPMethodGet {
-		resp = httpclient.Get(taskModel.Command, taskModel.Timeout)
+		resp = httpclient.Request("GET", taskModel.Command, "", "", headers, taskModel.Timeout)
+	} else if taskModel.HttpBodyMode == "json" {
+		body, contentType := taskModel.HttpBody, "application/json"
+		if strings.TrimSpace(body) == "" {
+			body, contentType = "", ""
+		}
+		resp = httpclient.Request("POST", taskModel.Command, body, contentType, headers, taskModel.Timeout)
 	} else {
-		urlFields := strings.Split(taskModel.Command, "?")
+		urlFields := strings.SplitN(taskModel.Command, "?", 2)
 		taskModel.Command = urlFields[0]
 		var params string
 		if len(urlFields) >= 2 {
 			params = urlFields[1]
 		}
-		resp = httpclient.PostParams(taskModel.Command, params, taskModel.Timeout)
+		resp = httpclient.Request("POST", taskModel.Command, params, "application/x-www-form-urlencoded", headers, taskModel.Timeout)
 	}
 	// 返回状态码非200，均为失败
 	if resp.StatusCode != http.StatusOK {
@@ -320,7 +341,7 @@ func createJob(taskModel models.Task) cron.FuncJob {
 		defer taskCount.Done()
 
 		taskLogId := beforeExecJob(taskModel)
-		if taskLogId <= 0 {
+		if taskLogId == 0 {
 			return
 		}
 
@@ -331,6 +352,13 @@ func createJob(taskModel models.Task) cron.FuncJob {
 
 		concurrencyQueue.Add()
 		defer concurrencyQueue.Done()
+		if taskModel.Expired(time.Now()) {
+			ServiceTask.PauseExpired(taskModel)
+			if taskLogId > 0 {
+				new(models.TaskLog).Update(taskLogId, models.CommonMap{"status": models.Cancel, "result": "排队期间任务到期，已暂停"})
+			}
+			return
+		}
 
 		logger.Infof("开始执行任务#%s#命令-%s", taskModel.Name, taskModel.Command)
 		taskResult := execJob(handler, taskModel, taskLogId)
@@ -355,9 +383,18 @@ func createHandler(taskModel models.Task) Handler {
 
 // 任务前置操作
 func beforeExecJob(taskModel models.Task) (taskLogId int64) {
-	if taskModel.Multi == 0 && runInstance.has(taskModel.Id) {
-		createTaskLog(taskModel, models.Cancel)
+	if taskModel.Expired(time.Now()) {
+		ServiceTask.PauseExpired(taskModel)
 		return
+	}
+	if taskModel.Multi == 0 && runInstance.has(taskModel.Id) {
+		if !taskModel.LogDisabled {
+			createTaskLog(taskModel, models.Cancel)
+		}
+		return
+	}
+	if taskModel.LogDisabled {
+		return -atomic.AddInt64(&executionSequence, 1)
 	}
 	taskLogId, err := createTaskLog(taskModel, models.Running)
 	if err != nil {
@@ -371,9 +408,11 @@ func beforeExecJob(taskModel models.Task) (taskLogId int64) {
 
 // 任务执行后置操作
 func afterExecJob(taskModel models.Task, taskResult TaskResult, taskLogId int64) {
-	_, err := updateTaskLog(taskLogId, taskResult)
-	if err != nil {
-		logger.Error("任务结束#更新任务日志失败-", err)
+	if taskLogId > 0 {
+		_, err := updateTaskLog(taskLogId, taskResult)
+		if err != nil {
+			logger.Error("任务结束#更新任务日志失败-", err)
+		}
 	}
 
 	// 发送邮件

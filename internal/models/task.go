@@ -46,14 +46,20 @@ type TaskReference struct {
 // 任务
 type Task struct {
 	Id               int                  `json:"id" xorm:"int pk autoincr"`
-	Name             string               `json:"name" xorm:"varchar(32) notnull"`                            // 任务名称
-	Level            TaskLevel            `json:"level" xorm:"tinyint notnull index default 1"`               // 任务等级 1: 主任务 2: 依赖任务
-	DependencyTaskId string               `json:"dependency_task_id" xorm:"varchar(64) notnull default ''"`   // 依赖任务ID,多个ID逗号分隔
-	DependencyStatus TaskDependencyStatus `json:"dependency_status" xorm:"tinyint notnull default 1"`         // 依赖关系 1:强依赖 主任务执行成功, 依赖任务才会被执行 2:弱依赖
-	Spec             string               `json:"spec" xorm:"varchar(64) notnull"`                            // crontab
-	Protocol         TaskProtocol         `json:"protocol" xorm:"tinyint notnull index"`                      // 协议 1:http 2:系统命令
-	Command          string               `json:"command" xorm:"text notnull"`                                // URL地址或shell命令
-	HttpMethod       TaskHTTPMethod       `json:"http_method" xorm:"tinyint notnull default 1"`               // http请求方法
+	Name             string               `json:"name" xorm:"varchar(32) notnull"`                          // 任务名称
+	Level            TaskLevel            `json:"level" xorm:"tinyint notnull index default 1"`             // 任务等级 1: 主任务 2: 依赖任务
+	DependencyTaskId string               `json:"dependency_task_id" xorm:"varchar(64) notnull default ''"` // 依赖任务ID,多个ID逗号分隔
+	DependencyStatus TaskDependencyStatus `json:"dependency_status" xorm:"tinyint notnull default 1"`       // 依赖关系 1:强依赖 主任务执行成功, 依赖任务才会被执行 2:弱依赖
+	Spec             string               `json:"spec" xorm:"varchar(64) notnull"`                          // crontab
+	Protocol         TaskProtocol         `json:"protocol" xorm:"tinyint notnull index"`                    // 协议 1:http 2:系统命令
+	Command          string               `json:"command" xorm:"text notnull"`                              // URL地址或shell命令
+	HttpMethod       TaskHTTPMethod       `json:"http_method" xorm:"tinyint notnull default 1"`             // http请求方法
+	HttpHeaders      string               `json:"http_headers" xorm:"text"`
+	HttpBodyMode     string               `json:"http_body_mode" xorm:"varchar(16) notnull default ''"`
+	HttpBody         string               `json:"http_body" xorm:"text"`
+	ExpiresAt        string               `json:"expires_at" xorm:"varchar(19) notnull default ''"`
+	LogDisabled      bool                 `json:"log_disabled" xorm:"notnull default 0"`
+	LogRetentionDays int                  `json:"log_retention_days" xorm:"notnull default 0"`
 	Timeout          int                  `json:"timeout" xorm:"mediumint notnull default 0"`                 // 任务执行超时时间(单位秒),0不限制
 	Multi            int8                 `json:"multi" xorm:"tinyint notnull default 1"`                     // 是否允许多实例运行
 	RetryTimes       int8                 `json:"retry_times" xorm:"tinyint notnull default 0"`               // 重试次数
@@ -94,7 +100,8 @@ func (task *Task) UpdateBean(id int) (int64, error) {
 	return Db.ID(id).
 		Cols(`name,level,spec,protocol,command,timeout,multi,
 			retry_times,retry_interval,remark,notify_status,
-			notify_type,notify_receiver_id, dependency_task_id, dependency_status, tag,http_method, notify_keyword`).
+			notify_type,notify_receiver_id, dependency_task_id, dependency_status, tag,http_method, notify_keyword,
+			http_headers,http_body_mode,http_body,expires_at,log_disabled,log_retention_days`).
 		Update(task)
 }
 

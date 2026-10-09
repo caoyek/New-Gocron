@@ -54,11 +54,6 @@
                     <el-option v-for="item in availableHosts" :key="item.id" :label="item.alias + ' - ' + item.name" :value="item.id"></el-option>
                   </el-select>
                 </el-form-item>
-                <el-form-item v-else class="span-6" label="请求方法">
-                  <el-radio-group v-model="form.http_method" size="small">
-                    <el-radio-button v-for="item in httpMethods" :key="item.value" :label="item.value">{{item.label.toUpperCase()}}</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
                 <el-form-item v-if="form.level === 1" class="span-6" label="依赖关系">
                   <div class="field-with-help">
                     <el-radio-group v-model="form.dependency_status" size="small">
@@ -108,6 +103,10 @@
                     </div>
                   </div>
                 </el-form-item>
+                <el-form-item class="span-12" label="到期时间（选填）">
+                  <el-date-picker v-model="form.expires_at" type="datetime" value-format="yyyy-MM-dd HH:mm:ss" placeholder="留空表示永久生效" clearable></el-date-picker>
+                  <div class="task-option-hint">按服务器时间，到期暂停，不中断已开始的执行。</div>
+                </el-form-item>
                 <el-form-item class="span-12 switch-form-item" label="单实例运行">
                   <div class="switch-field">
                     <el-switch v-model="form.multi" :active-value="2" :inactive-value="1" active-color="#2783de"></el-switch>
@@ -141,7 +140,23 @@
             </section>
 
             <section class="task-form-section">
-              <h3 class="section-title"><span>4</span>通知与备注</h3>
+              <h3 class="section-title"><span>4</span>执行日志</h3>
+              <div class="form-grid">
+                <el-form-item class="span-6" label="记录执行日志">
+                  <el-switch v-model="form.log_disabled" :active-value="false" :inactive-value="true" active-color="#2783de"></el-switch>
+                  <span>{{form.log_disabled ? ' 已关闭' : ' 已开启'}}</span>
+                </el-form-item>
+                <el-form-item class="span-6" label="日志保留时间">
+                  <el-select v-model="form.log_retention_days">
+                    <el-option v-for="item in logRetentionOptions" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                  </el-select>
+                </el-form-item>
+                <div class="span-12 task-option-hint">关闭后不写入新的执行日志，不影响重试、通知和子任务。过期的已结束日志自动清理，永久保留不清理。</div>
+              </div>
+            </section>
+
+            <section class="task-form-section">
+              <h3 class="section-title"><span>5</span>通知与备注</h3>
               <div class="form-grid">
                 <el-form-item class="span-12" label="任务通知">
                   <el-radio-group v-model="form.notify_status" size="small" class="wide-segmented-control">
@@ -215,12 +230,13 @@
 
           <div class="task-command-panel">
             <div class="command-panel-heading">
-              <span class="command-panel-label"><b>*</b> 命令（执行内容）</span>
-              <el-radio-group v-model="form.protocol" size="small">
+              <span class="command-panel-label"><b>*</b> {{form.protocol === 1 ? 'HTTP 请求配置' : '命令（执行内容）'}}</span>
+              <el-radio-group v-model="form.protocol" size="small" @change="onProtocolChange">
                 <el-radio-button v-for="item in protocolList" :key="item.value" :label="item.value">{{item.label.toUpperCase()}}</el-radio-button>
               </el-radio-group>
             </div>
-            <el-form-item class="command-form-item" prop="command">
+            <http-request-editor v-if="form.protocol === 1" ref="httpEditor" :form="form" :legacy-form="!!taskId && form.http_body_mode !== 'json'"></http-request-editor>
+            <el-form-item v-else class="command-form-item" prop="command">
               <div class="command-editor">
                 <div class="command-editor__body">
                   <textarea ref="commandEditor" v-model="form.command" class="command-editor__input" :placeholder="commandPlaceholder" spellcheck="false" wrap="soft" @keydown.tab.prevent="insertTab"></textarea>
@@ -244,6 +260,7 @@
 <script>
 import taskService from '../../api/task'
 import notificationService from '../../api/notification'
+import HttpRequestEditor from './httpRequestEditor'
 
 function emptyForm () {
   return {
@@ -256,6 +273,12 @@ function emptyForm () {
     spec: '',
     protocol: 2,
     http_method: 1,
+    http_headers: '',
+    http_body_mode: '',
+    http_body: '',
+    expires_at: '',
+    log_disabled: false,
+    log_retention_days: 90,
     command: '',
     host_id: '',
     timeout: 0,
@@ -297,6 +320,7 @@ function parseWebhookNotifyTarget (value) {
 
 export default {
   name: 'task-edit',
+  components: {HttpRequestEditor},
   props: {
     visible: {
       type: Boolean,
@@ -318,6 +342,14 @@ export default {
   data () {
     return {
       form: emptyForm(),
+      logRetentionOptions: [
+        {value: 7, label: '7天'},
+        {value: 30, label: '30天'},
+        {value: 90, label: '90天'},
+        {value: 180, label: '180天'},
+        {value: 365, label: '1年'},
+        {value: 0, label: '永久'}
+      ],
       loading: false,
       formRules: {
         name: [
@@ -327,7 +359,17 @@ export default {
           {required: true, message: '请输入crontab表达式', trigger: 'blur'}
         ],
         command: [
-          {required: true, message: '请输入命令', trigger: 'blur'}
+          {
+            required: true,
+            validator: (rule, value, callback) => {
+              if (!value || !value.trim()) {
+                callback(new Error(this.form.protocol === 1 ? '请输入请求 URL' : '请输入命令'))
+              } else {
+                callback()
+              }
+            },
+            trigger: 'blur'
+          }
         ],
         timeout: [
           {type: 'number', required: true, message: '请输入有效的任务超时时间', trigger: 'blur'}
@@ -339,16 +381,6 @@ export default {
           {type: 'number', required: true, message: '请输入有效的任务执行失败，重试间隔时间', trigger: 'blur'}
         ]
       },
-      httpMethods: [
-        {
-          value: 1,
-          label: 'get'
-        },
-        {
-          value: 2,
-          label: 'post'
-        }
-      ],
       protocolList: [
         {
           value: 1,
@@ -445,6 +477,11 @@ export default {
     }
   },
   watch: {
+    'form.http_method' (value) {
+      if (value === 1) {
+        this.form.http_body_mode = ''
+      }
+    },
     visible (value) {
       if (value) {
         this.open()
@@ -457,6 +494,12 @@ export default {
     }
   },
   methods: {
+    onProtocolChange (value) {
+      if (value === 1) {
+        this.form.http_method = 2
+        this.form.http_body_mode = 'json'
+      }
+    },
     open () {
       this.reset()
       this.availableHosts = this.hosts || []
@@ -514,6 +557,12 @@ export default {
         this.form.http_method = taskData.http_method
       }
       this.form.command = taskData.command
+      this.form.http_headers = taskData.http_headers || ''
+      this.form.http_body_mode = taskData.http_body_mode || ''
+      this.form.http_body = taskData.http_body || ''
+      this.form.expires_at = taskData.expires_at || ''
+      this.form.log_disabled = taskData.log_disabled === true
+      this.form.log_retention_days = taskData.log_retention_days == null ? 0 : taskData.log_retention_days
       this.form.timeout = taskData.timeout
       this.form.multi = taskData.multi ? 1 : 2
       this.populateNotificationRules(taskData.notify_keyword)
@@ -695,6 +744,9 @@ export default {
       return JSON.stringify({format: 'notification_rules', version: 1, mode: this.notificationRuleMode, rules: rules})
     },
     submit () {
+      if (this.form.protocol === 1 && this.$refs.httpEditor && !this.$refs.httpEditor.validate()) {
+        return
+      }
       this.$refs['form'].validate((valid) => {
         if (!valid) {
           return false
@@ -820,7 +872,7 @@ export default {
   min-height: 0;
   box-sizing: border-box;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 0 20px 10px;
   background: #ffffff;
 }
@@ -1293,10 +1345,21 @@ export default {
   display: flex;
   height: auto;
   max-height: none;
-  min-height: 0;
+  min-height: 180px;
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
+}
+
+.form-grid /deep/ .el-date-editor {
+  width: 100%;
+}
+
+.task-option-hint {
+  color: #909399;
+  font-size: 12px;
+  line-height: 18px;
+  margin-bottom: 8px;
 }
 
 .command-form-item /deep/ .el-form-item__content {

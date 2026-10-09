@@ -47,6 +47,20 @@ func PostJson(url string, body string, timeout int) ResponseWrapper {
 	return request(req, timeout)
 }
 
+func Request(method, url, body, contentType string, headers map[string]string, timeout int) ResponseWrapper {
+	req, err := http.NewRequest(method, url, bytes.NewBufferString(body))
+	if err != nil {
+		return createRequestError(err)
+	}
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+	return request(req, timeout)
+}
+
 func request(req *http.Request, timeout int) ResponseWrapper {
 	wrapper := ResponseWrapper{StatusCode: 0, Body: "", Header: make(http.Header)}
 	client := &http.Client{}
@@ -73,7 +87,9 @@ func request(req *http.Request, timeout int) ResponseWrapper {
 }
 
 func setRequestHeader(req *http.Request) {
-	req.Header.Set("User-Agent", "golang/gocron")
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "golang/gocron")
+	}
 }
 
 func createRequestError(err error) ResponseWrapper {

@@ -79,6 +79,32 @@
       @prev-click="changePage"
       @next-click="changePage">
     </el-pagination>
+    <div class="task-table-toolbar task-desktop-only">
+      <el-popover
+        placement="bottom-end"
+        trigger="click"
+        popper-class="task-column-picker-popper">
+        <div class="task-column-picker">
+          <div class="task-column-picker__title">选择显示字段</div>
+          <el-checkbox-group v-model="visibleTaskColumns" @change="saveVisibleTaskColumns">
+            <el-checkbox v-for="column in taskColumnOptions" :key="column.key" :label="column.key">
+              {{column.label}}
+            </el-checkbox>
+          </el-checkbox-group>
+        </div>
+        <el-button
+          slot="reference"
+          class="task-column-picker-button"
+          type="text"
+          aria-label="选择显示字段"
+          title="选择显示字段">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M18.2838 43.1713C14.9327 42.1736 11.9498 40.3213 9.58787 37.867C10.469 36.8227 11 35.4734 11 34.0001C11 30.6864 8.31371 28.0001 5 28.0001C4.79955 28.0001 4.60139 28.01 4.40599 28.0292C4.13979 26.7277 4 25.3803 4 24.0001C4 21.9095 4.32077 19.8938 4.91579 17.9995C4.94381 17.9999 4.97188 18.0001 5 18.0001C8.31371 18.0001 11 15.3138 11 12.0001C11 11.0488 10.7786 10.1493 10.3846 9.35011C12.6975 7.1995 15.5205 5.59002 18.6521 4.72314C19.6444 6.66819 21.6667 8.00013 24 8.00013C26.3333 8.00013 28.3556 6.66819 29.3479 4.72314C32.4795 5.59002 35.3025 7.1995 37.6154 9.35011C37.2214 10.1493 37 11.0488 37 12.0001C37 15.3138 39.6863 18.0001 43 18.0001C43.0281 18.0001 43.0562 17.9999 43.0842 17.9995C43.6792 19.8938 44 21.9095 44 24.0001C44 25.3803 43.8602 26.7277 43.594 28.0292C43.3986 28.01 43.2005 28.0001 43 28.0001C39.6863 28.0001 37 30.6864 37 34.0001C37 35.4734 37.531 36.8227 38.4121 37.867C36.0502 40.3213 33.0673 42.1736 29.7162 43.1713C28.9428 40.752 26.676 39.0001 24 39.0001C21.324 39.0001 19.0572 40.752 18.2838 43.1713Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"></path>
+            <path d="M24 31C27.866 31 31 27.866 31 24C31 20.134 27.866 17 24 17C20.134 17 17 20.134 17 24C17 27.866 20.134 31 24 31Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"></path>
+          </svg>
+        </el-button>
+      </el-popover>
+    </div>
     <el-table
       ref="taskTable"
       :data="tasks"
@@ -163,11 +189,13 @@
       <el-table-column
         prop="id"
         label="ID"
-        width="52">
+        width="52"
+        v-if="isTaskColumnVisible('id')">
       </el-table-column>
       <el-table-column
         label="任务名称"
-        width="330">
+        width="330"
+        v-if="isTaskColumnVisible('name')">
         <template slot-scope="scope">
           <div
             class="task-name-cell"
@@ -192,26 +220,27 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="标签" :width="tagColumnWidth">
+      <el-table-column v-if="isTaskColumnVisible('tag')" label="标签" :width="tagColumnWidth">
         <template slot-scope="scope">
           <span class="task-tag-cell" :title="scope.row.tag || ''">{{scope.row.tag || '-'}}</span>
         </template>
       </el-table-column>
       <el-table-column
         label="cron表达式"
-        width="140">
+        width="140"
+        v-if="isTaskColumnVisible('spec')">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.level === 2" size="mini" type="info">子任务</el-tag>
           <span v-else>{{scope.row.spec}}</span>
         </template>
       </el-table-column>
-      <el-table-column label="下次执行时间" width="190">
+      <el-table-column v-if="isTaskColumnVisible('next_run_time')" label="下次执行时间" width="190">
         <template slot-scope="scope">
           <el-tag v-if="scope.row.level === 2" size="mini" type="info">子任务</el-tag>
           <span v-else>{{scope.row.next_run_time | formatTime}}</span>
         </template>
       </el-table-column>
-      <el-table-column label="上次执行" width="250">
+      <el-table-column v-if="isTaskColumnVisible('last_run')" label="上次执行" width="250">
         <template slot-scope="scope">
           <div v-if="scope.row.last_run_time" class="task-last-run">
             <span
@@ -230,9 +259,10 @@
         prop="protocol"
         :formatter="formatProtocol"
         label="执行方式"
-        width="88">
+        width="88"
+        v-if="isTaskColumnVisible('protocol')">
       </el-table-column>
-      <el-table-column label="执行命令" min-width="180">
+      <el-table-column v-if="isTaskColumnVisible('command')" label="执行命令" min-width="180">
         <template slot-scope="scope">
           <el-popover
             placement="top-start"
@@ -543,6 +573,17 @@ export default {
   data () {
     return {
       tasks: [],
+      taskColumnOptions: [
+        {key: 'id', label: 'ID'},
+        {key: 'name', label: '任务名称'},
+        {key: 'tag', label: '标签'},
+        {key: 'spec', label: 'Cron 表达式'},
+        {key: 'next_run_time', label: '下次执行时间'},
+        {key: 'last_run', label: '上次执行'},
+        {key: 'protocol', label: '执行方式'},
+        {key: 'command', label: '执行命令'}
+      ],
+      visibleTaskColumns: [],
       hosts: [],
       tags: [],
       taskTotal: 0,
@@ -619,6 +660,7 @@ export default {
   },
   components: {taskEditor},
   created () {
+    this.loadVisibleTaskColumns()
     this.loadPinnedTasks()
     const hostId = this.$route.query.host_id
     if (hostId) {
@@ -670,6 +712,27 @@ export default {
     }
   },
   methods: {
+    taskColumnStorageKey () {
+      const uid = this.$store.getters.user.uid || 'anonymous'
+      return `new-gocron:task-columns:${uid}`
+    },
+    loadVisibleTaskColumns () {
+      const defaults = this.taskColumnOptions.map(column => column.key)
+      try {
+        const saved = JSON.parse(localStorage.getItem(this.taskColumnStorageKey()) || 'null')
+        this.visibleTaskColumns = Array.isArray(saved)
+          ? defaults.filter(key => saved.indexOf(key) !== -1)
+          : defaults
+      } catch (error) {
+        this.visibleTaskColumns = defaults
+      }
+    },
+    saveVisibleTaskColumns () {
+      localStorage.setItem(this.taskColumnStorageKey(), JSON.stringify(this.visibleTaskColumns))
+    },
+    isTaskColumnVisible (key) {
+      return this.visibleTaskColumns.indexOf(key) !== -1
+    },
     pinnedTaskStorageKey () {
       const uid = this.$store.getters.user.uid || 'anonymous'
       return `new-gocron:pinned-tasks:${uid}`
@@ -1147,6 +1210,43 @@ export default {
     background: transparent;
   }
 
+  .task-table-toolbar {
+    display: flex;
+    height: 26px;
+    margin-top: -12px;
+    margin-bottom: 4px;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
+  .task-column-picker-button {
+    display: inline-flex;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    color: #858b94;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .task-column-picker-button svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+  }
+
+  .task-column-picker-button:hover,
+  .task-column-picker-button:focus {
+    background: #f1f3f5;
+    color: #50565f;
+  }
+
   .task-filter-grid {
     display: grid;
     grid-template-columns: 200px 200px 200px 120px 90px auto;
@@ -1176,6 +1276,29 @@ export default {
     gap: 8px;
     align-items: center;
     align-self: end;
+  }
+
+  .task-column-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .task-column-picker__title {
+    color: #606266;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .task-column-picker /deep/ .el-checkbox-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .task-column-picker /deep/ .el-checkbox {
+    margin: 0 !important;
   }
 
   .task-filter-actions .el-button + .el-button {

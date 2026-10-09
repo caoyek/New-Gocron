@@ -150,9 +150,9 @@
                 </el-form-item>
                 <div v-if="form.notify_status !== 1" class="notification-settings-row" :class="{'is-webhook': form.notify_type === 4}">
                   <el-form-item label="通知类型">
-                    <el-radio-group v-model="form.notify_type" size="small">
-                      <el-radio-button v-for="item in notifyTypes" :key="item.value" :label="item.value">{{item.label}}</el-radio-button>
-                    </el-radio-group>
+                    <el-select v-model="form.notify_type" size="small" placeholder="选择通知类型">
+                      <el-option v-for="item in notifyTypes" :key="item.value" :label="item.label" :value="item.value"></el-option>
+                    </el-select>
                   </el-form-item>
                   <el-form-item v-if="form.notify_type === 2" class="notification-recipient" label="接收用户">
                     <el-select key="notify-mail" v-model="selectedMailNotifyIds" filterable multiple collapse-tags placeholder="请选择">
@@ -990,12 +990,17 @@ export default {
   display: grid;
   min-width: 0;
   grid-column: span 12;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   gap: 10px;
 }
 
 .notification-settings-row.is-webhook {
-  grid-template-columns: calc((100% - 10px) / 2) repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 0.72fr) repeat(2, minmax(0, 1.14fr));
+}
+
+.notification-settings-row > .el-form-item /deep/ .el-select {
+  display: block;
+  width: 100%;
 }
 
 .notification-recipient /deep/ .el-select__tags {

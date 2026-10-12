@@ -2,7 +2,7 @@
 
 New-Gocron 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 二次开发。感谢原作者及社区贡献者提供稳定的任务调度基础。本项目在保留原有 Shell、HTTP、任务依赖、多节点和通知能力的基础上，持续完善管理界面、数据看板、任务操作、登录安全及发布流程。
 
-当前版本为 **2.0.4**，支持 MySQL 和 PostgreSQL，可通过二进制包部署，也可从源码构建。
+当前版本为 **2.0.5**，支持 MySQL 和 PostgreSQL，可通过二进制包部署，也可从源码构建。
 
 ## 界面预览
 
@@ -35,7 +35,7 @@ New-Gocron 基于 [ouqiang/gocron](https://github.com/ouqiang/gocron) 二次开�
 - 可关闭单个任务的执行日志，关闭后不再写入数据库执行记录及输出，但重试、通知和子任务不受影响。程序和节点的运行日志不在此开关范围内。
 - 日志可保留 7天、30天、90天、180天、1年或永久。新建任务默认90天，旧任务保持开启日志、永久保留。程序启动及之后每小时分批清理超期的已结束日志，不删除执行中的日志；关闭记录也不会立即删除历史日志。
 
-当前版本修复执行日志 XSS、任务通知选择框布局，以及小窗口下编辑弹窗无法滚动的问题。完整版本记录（含上游 gocron 历史版本概要）请查看 [CHANGELOG.md](CHANGELOG.md)。
+当前版本还支持任务列表和执行日志自定义显示字段，优化通知选择布局，并修复旧数据库企微群接收字段兼容问题。完整版本记录（含上游 gocron 历史版本概要）请查看 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 二进制部署
 
@@ -89,7 +89,7 @@ curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/inst
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/caoyek/New-Gocron/main/scripts/install.sh | \
-  sudo bash -s -- --version v2.0.4 --install-dir /data/new-gocron
+  sudo bash -s -- --version v2.0.5 --install-dir /data/new-gocron
 ```
 
 默认安装目录为 `/usr/local/gocron`，安装过程记录在 `/var/log/new-gocron-install.log`。首次启动后访问 `http://服务器IP:5920` 完成数据库和管理员配置。
@@ -190,7 +190,7 @@ MySQL 的通知接收字段会在启动和 `db-upgrade` 时检查，不依赖 `c
 
 1. 备份当前数据库和 `conf/app.ini`。
 2. 停止旧版 Web 服务，避免升级过程中继续写入数据。
-3. 解压 New-Gocron 2.0.4，并保留原有的 `conf/app.ini`、`conf/install.lock` 和 `conf/.version`。
+3. 解压 New-Gocron 2.0.5，并保留原有的 `conf/app.ini`、`conf/install.lock` 和 `conf/.version`。
 4. 在 New-Gocron 程序目录执行数据库升级命令。
 5. 数据库升级成功后再启动 Web 服务和任务节点。
 
@@ -295,13 +295,13 @@ go test ./...
 在 Windows 本地生成 Linux、Windows amd64 完整发布包：
 
 ```powershell
-.\scripts\package-release.ps1 -Version v2.0.4
+.\scripts\package-release.ps1 -Version v2.0.5
 ```
 
 Linux 或 macOS 可使用 Make：
 
 ```bash
-make package VERSION=v2.0.4
+make package VERSION=v2.0.5
 ```
 
 两个入口都会构建前端、更新内嵌静态资源、运行 Go 测试，并在 `dist/` 生成 Windows/Linux 主程序、节点程序和 `SHA256SUMS.txt`。本地构建只生成文件，不会自动上传 GitHub。
@@ -316,11 +316,11 @@ make package VERSION=v2.0.4
 
 ```bash
 git push origin main
-git tag v2.0.4
-git push origin v2.0.4
+git tag v2.0.5
+git push origin v2.0.5
 ```
 
-需要中文发行说明时，在推送标签前新增 `docs/releases/v2.0.4.md`。工作流会把该文件放在 Release 正文顶部，并在下方追加 GitHub 根据提交和 PR 自动生成的变更记录；未提供该文件时则只使用自动生成内容。
+需要中文发行说明时，在推送标签前新增 `docs/releases/v2.0.5.md`。工作流会把该文件放在 Release 正文顶部，并在下方追加 GitHub 根据提交和 PR 自动生成的变更记录；未提供该文件时则只使用自动生成内容。
 
 本地和 GitHub 可以同时编译，但正式 Release 的同名资产建议只由 GitHub Actions 上传，避免并发覆盖。
 

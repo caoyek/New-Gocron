@@ -156,6 +156,8 @@ Windows：
 
 ## 从旧版本升级
 
+原版 gocron v1.5.3 用户可先阅读[完整升级教程](docs/upgrade-from-gocron.md)，包含备份、替换、迁移、验收和回滚步骤。
+
 New-Gocron 2.0 相对原项目涉及以下数据库字段调整：
 
 | 表 | 字段 | 原类型或异常类型 | New-Gocron 2.0 类型 |
